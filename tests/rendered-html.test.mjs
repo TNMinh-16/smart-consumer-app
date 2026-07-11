@@ -44,7 +44,8 @@ test("contains offline interactions for all eight learning stages", async () => 
   assert.match(js, /ke-hoach-chi-tieu\.txt/);
   assert.match(js, /nhat-ki-7-ngay\.txt/);
   assert.match(css, /@media\(max-width:560px\)/);
-  assert.match(worker, /ASSETS\.fetch/);
+  assert.match(worker, /public\/index\.html\?raw/);
+  assert.doesNotMatch(worker, /ASSETS\.fetch/);
   assert.doesNotMatch(worker, /app-router-entry/);
   void root;
 });
