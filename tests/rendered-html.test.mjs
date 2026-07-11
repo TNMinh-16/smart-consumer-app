@@ -2,38 +2,49 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 
+const root = new URL("../", import.meta.url);
+
 async function render() {
   const workerUrl = new URL("../dist/server/index.js", import.meta.url);
   workerUrl.searchParams.set("test", `${process.pid}-${Date.now()}`);
   const { default: worker } = await import(workerUrl.href);
-  return worker.fetch(new Request("http://localhost/", { headers: { accept: "text/html" } }), {
-    ASSETS: { fetch: async () => new Response("Not found", { status: 404 }) },
-  }, { waitUntil() {}, passThroughOnException() {} });
+  return worker.fetch(new Request("https://example.test/"), {
+    ASSETS: {
+      fetch: async (request) => {
+        const name = new URL(request.url).pathname.replace(/^\//, "");
+        try {
+          const body = await readFile(new URL(`../dist/client/${name}`, import.meta.url));
+          return new Response(body, { status: 200, headers: { "content-type": name.endsWith(".html") ? "text/html; charset=utf-8" : "application/octet-stream" } });
+        } catch { return new Response("Not found", { status: 404 }); }
+      },
+    },
+  });
 }
 
-test("server-renders the Smart Consumer learning site", async () => {
+test("serves the static learning site at the root URL", async () => {
   const response = await render();
   assert.equal(response.status, 200);
   assert.match(response.headers.get("content-type") ?? "", /^text\/html\b/i);
   const html = await response.text();
   assert.match(html, /<html lang="vi">/i);
-  assert.match(html, /<title>Smart Consumer — Tiêu dùng thông minh<\/title>/i);
-  assert.match(html, /GDCD 9 · BÀI HỌC TƯƠNG TÁC/);
-  assert.match(html, /Mua đúng nhu cầu/);
-  assert.match(html, /Hành trình của em/);
-  assert.doesNotMatch(html, /codex-preview|Your site is taking shape|react-loading-skeleton/i);
+  assert.match(html, /Smart Consumer — Tiêu dùng thông minh/);
+  assert.match(html, /Thử thách 7 ngày tiêu dùng thông minh/);
+  assert.match(html, /KẾ HOẠCH CHI TIÊU/i);
 });
 
-test("includes the complete interactive learning journey", async () => {
-  const [page, layout, packageJson] = await Promise.all([
-    readFile(new URL("../app/page.tsx", import.meta.url), "utf8"),
-    readFile(new URL("../app/layout.tsx", import.meta.url), "utf8"),
-    readFile(new URL("../package.json", import.meta.url), "utf8"),
+test("contains offline interactions for all eight learning stages", async () => {
+  const [html, js, css, worker] = await Promise.all([
+    readFile(new URL("../public/index.html", import.meta.url), "utf8"),
+    readFile(new URL("../public/static.js", import.meta.url), "utf8"),
+    readFile(new URL("../public/static.css", import.meta.url), "utf8"),
+    readFile(new URL("../worker/index.ts", import.meta.url), "utf8"),
   ]);
-  for (const section of ["Mục tiêu", "Bài học", "Quảng cáo", "Tình huống", "Kế hoạch chi tiêu", "Quiz", "Vận dụng"]) assert.match(page, new RegExp(section));
-  assert.match(page, /localStorage/);
-  assert.match(page, /Thử thách 7 ngày/);
-  assert.match(page, /ke-hoach-chi-tieu\.txt/);
-  assert.match(layout, /lang="vi"/);
-  assert.doesNotMatch(packageJson, /react-loading-skeleton/);
+  for (let i = 0; i < 8; i++) assert.match(html, new RegExp(`data-panel="${i}"`));
+  assert.match(js, /localStorage/);
+  assert.match(js, /ke-hoach-chi-tieu\.txt/);
+  assert.match(js, /nhat-ki-7-ngay\.txt/);
+  assert.match(css, /@media\(max-width:560px\)/);
+  assert.match(worker, /ASSETS\.fetch/);
+  assert.doesNotMatch(worker, /app-router-entry/);
+  void root;
 });

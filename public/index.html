@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="description" content="Website học tập tương tác môn GDCD 9 về tiêu dùng thông minh">
+  <title>Smart Consumer — Tiêu dùng thông minh</title>
+  <link rel="icon" href="favicon.svg">
+  <link rel="stylesheet" href="static.css">
+</head>
+<body>
+  <header class="topbar">
+    <button class="brand" data-go="0"><span>S</span><b>SMART<br>CONSUMER</b></button>
+    <div class="overall"><label>Hành trình của em <b id="progressText">0%</b></label><div><i id="progressBar"></i></div></div>
+    <div class="score">★ <b id="score">0</b><small>điểm thông minh</small></div>
+  </header>
+  <nav id="nav" aria-label="Các phần bài học"></nav>
+
+  <main>
+    <section class="panel hero active" data-panel="0">
+      <div class="heroCopy"><span class="kicker">GDCD 9 · BÀI HỌC TƯƠNG TÁC</span><h1>Tiêu dùng<br><em>thông minh.</em></h1><p>Mỗi ngày em đều đưa ra quyết định mua sắm. Hãy học cách chọn đúng nhu cầu, kiểm tra thông tin và chi tiêu có kế hoạch.</p><div class="three"><span><b>01</b>Mua đúng nhu cầu</span><span><b>02</b>Kiểm tra thông tin</span><span><b>03</b>Chi tiêu có kế hoạch</span></div><div class="actions"><button class="primary" data-complete="0">Bắt đầu hành trình →</button><button class="ghost" data-go="1">Xem mục tiêu</button></div></div>
+      <div class="visual"><div class="ring"></div><div class="bank"><small>NGÂN SÁCH TUẦN</small><strong>300.000<sup>đ</sup></strong><div class="bars"><i></i><i></i><i></i><i></i><i></i></div><div class="split"><span>CẦN THIẾT<b>50%</b></span><span>TIẾT KIỆM<b>30%</b></span><span>SỞ THÍCH<b>20%</b></span></div></div><div class="badge one">✓ Đúng nhu cầu</div><div class="badge two">★ +10 thông minh</div></div>
+    </section>
+
+    <section class="panel" data-panel="1"><header class="sectionHead"><span>01 · MỤC TIÊU</span><h2>Sau bài học này, em có thể...</h2><p>Chạm vào từng mục tiêu để xem điều em sẽ chinh phục.</p></header><div class="goalGrid">
+      <article><b>01</b><h3>Hiểu đúng</h3><p>Nhận biết tiêu dùng thông minh và lợi ích thiết thực.</p></article><article><b>02</b><h3>Kiểm chứng</h3><p>Nhận diện quảng cáo và kiểm tra trước khi mua.</p></article><article><b>03</b><h3>Ra quyết định</h3><p>Đánh giá hành vi trong tình huống đời sống.</p></article><article><b>04</b><h3>Lập kế hoạch</h3><p>Cân đối nhu cầu, mong muốn và khả năng tài chính.</p></article><article><b>05</b><h3>Hành động</h3><p>Thực hiện tiêu dùng thông minh mỗi ngày.</p></article><article><b>06</b><h3>Lan tỏa</h3><p>Khích lệ người thân và bạn bè cùng thực hiện.</p></article>
+    </div><div class="continue"><button class="primary" data-complete="1">Tôi đã hiểu mục tiêu →</button></div></section>
+
+    <section class="panel" data-panel="2"><header class="sectionHead"><span>02 · BÀI HỌC</span><h2>Bộ công cụ của người mua thông minh</h2><p>Kiến thức ngắn gọn, gần với cuộc sống của em.</p></header><div class="lessonGrid">
+      <article><i>?</i><h3>Tiêu dùng thông minh là gì?</h3><p>Biết lựa chọn, mua và sử dụng sản phẩm hợp lí: đúng nhu cầu, vừa tài chính, bảo đảm chất lượng, an toàn và tránh lãng phí.</p></article><article><i>+</i><h3>Lợi ích</h3><p>Tiết kiệm tiền và thời gian, bảo vệ sức khỏe, quyền lợi; hình thành thói quen quản lí tài chính tốt.</p></article><article><i>✓</i><h3>6 bước mua thông minh</h3><p>Xác định nhu cầu → tìm hiểu → so sánh → cân nhắc chi trả → kiểm tra quảng cáo → theo kế hoạch.</p></article><article><i>!</i><h3>Điều cần tránh</h3><p>Mua theo cảm xúc, chạy theo bạn bè, ham khuyến mãi, ham rẻ không rõ nguồn gốc.</p></article>
+    </div><div class="tip"><b>Gợi ý thông minh</b> Trước khi mua, hãy dừng lại 10 giây và hỏi: “Mình cần hay chỉ đang muốn?”</div><div class="continue"><button class="primary" data-complete="2">Tiếp tục đến Quảng cáo →</button></div></section>
+
+    <section class="panel" data-panel="3"><header class="sectionHead"><span>03 · QUẢNG CÁO</span><h2>Đừng mua chỉ vì thấy hấp dẫn!</h2><p>Phát hiện tín hiệu gây vội vàng và chọn cách kiểm chứng.</p></header><div id="adActivity" class="activity"></div><div class="checklist"><b>5 điều cần kiểm tra</b><span>① Mình thật sự cần?</span><span>② Nguồn gốc rõ ràng?</span><span>③ Giá cả hợp lí?</span><span>④ Có đổi trả?</span><span>⑤ Vừa khả năng chi trả?</span></div></section>
+
+    <section class="panel" data-panel="4"><header class="sectionHead"><span>04 · TÌNH HUỐNG</span><h2>Em sẽ xử lí như thế nào?</h2><p>Đọc, suy nghĩ và chọn cách hợp lí nhất.</p></header><div id="situationActivity" class="activity situation"></div></section>
+
+    <section class="panel" data-panel="5"><header class="sectionHead"><span>05 · KẾ HOẠCH CHI TIÊU</span><h2>Mỗi đồng tiền đều có một nhiệm vụ</h2><p>Cân đối khoản cần thiết, tiết kiệm và sở thích.</p></header><div class="budget">
+      <form id="budgetForm"><label>Số tiền em có trong tuần<div class="field"><input id="money" type="number" min="0" value="300000"><span>đ</span></div></label><label>Mục tiêu chính<input id="goal" value="Tiết kiệm mua quà cho mẹ"></label><label>Khoản cần thiết<input id="need" type="number" min="0" value="80000"></label><label>Khoản tiết kiệm<input id="saving" type="number" min="0" value="100000"></label><label>Khoản muốn mua thêm<input id="want" type="number" min="0" value="50000"></label><div class="actions"><button class="primary" type="submit">Lưu kế hoạch</button><button class="ghost" type="button" id="downloadBudget">Tải kế hoạch</button></div><p id="saved"></p></form>
+      <aside><span>TỔNG QUAN</span><div class="donut"><b id="percent">0%</b><small>đã phân bổ</small></div><p>Tổng dự kiến <b id="total">0đ</b></p><p>Còn lại <strong id="remaining">0đ</strong></p><div id="budgetFeedback"></div></aside>
+    </div><div class="continue"><button class="primary" data-complete="5">Tiếp tục làm Quiz →</button></div></section>
+
+    <section class="panel" data-panel="6"><header class="sectionHead"><span>06 · QUIZ</span><h2>Thử thách kiến thức</h2><p>10 câu hỏi ngắn. Em có thể làm lại bất cứ lúc nào.</p></header><div id="quizActivity" class="quiz"></div></section>
+
+    <section class="panel" data-panel="7"><header class="sectionHead"><span>07 · VẬN DỤNG</span><h2>Thử thách 7 ngày tiêu dùng thông minh</h2><p>Theo dõi những khoản chi nhỏ để nhìn ra thói quen lớn.</p></header><div class="journal"><div class="journalHead"><b>NGÀY</b><b>CHI VÀO VIỆC GÌ?</b><b>SỐ TIỀN</b><b>PHÂN LOẠI</b><b>EM CÓ HÀI LÒNG?</b></div><div id="journalRows"></div></div><div class="challenge"><blockquote>“Đừng mua vì quảng cáo hấp dẫn,<br>hãy mua vì em thật sự cần.”</blockquote><div class="actions"><button class="ghost" id="clearJournal">Làm lại</button><button class="ghost" onclick="print()">In bài</button><button class="primary" id="downloadJournal">Lưu & tải xuống</button></div></div></section>
+  </main>
+  <footer><b>SMART CONSUMER · GDCD 9</b><span>Học để lựa chọn tốt hơn — mỗi ngày.</span></footer>
+  <script src="static.js"></script>
+</body>
+</html>
