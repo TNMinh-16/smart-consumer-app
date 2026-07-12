@@ -108,6 +108,17 @@ document.querySelectorAll("[data-complete]").forEach(button => button.addEventLi
 function renderOpenActivity(type) {
   const isAd = type === "ad";
   const root = $(isAd ? "#adActivity" : "#situationActivity");
+  
+  if (!currentUser) {
+    root.innerHTML = `<div class="emptyState" style="margin: 40px auto; max-width: 400px; padding: 40px 20px; background: #fff; border: 1px solid var(--line);">
+      <div class="contextIcon" style="margin: 0 auto 20px; font-size: 40px; background: #eef4ff; color: var(--blue); width: 80px; height: 80px; border-radius: 50%; display: grid; place-items: center;">🔒</div>
+      <h3 style="margin: 0 0 10px; color: var(--ink); font-size: 22px;">Yêu cầu đăng nhập</h3>
+      <p style="margin: 0 0 24px; font-size: 14px; color: var(--muted); line-height: 1.5;">Em cần đăng nhập hoặc tạo tài khoản để làm bài. Toàn bộ câu trả lời của em sẽ được lưu lại để giáo viên chấm điểm.</p>
+      <button class="primary" onclick="openAuthModal('login')" style="width: 100%;">Đăng nhập ngay</button>
+    </div>`;
+    return;
+  }
+
   const bank = isAd ? adBank : situationBank;
   const setKey = isAd ? "adSet" : "sitSet";
   const positionKey = isAd ? "adPosition" : "sitPosition";
@@ -169,6 +180,17 @@ function updateJournalSummary() {
 
 function renderJournal() {
   const root = $("#journalRows");
+  
+  if (!currentUser) {
+    root.innerHTML = `<tr><td colspan="5"><div class="emptyState" style="margin: 40px auto; max-width: 400px; padding: 40px 20px; border: none; text-align: center;">
+      <div class="contextIcon" style="margin: 0 auto 20px; font-size: 40px; background: #eef4ff; color: var(--blue); width: 80px; height: 80px; border-radius: 50%; display: grid; place-items: center;">🔒</div>
+      <h3 style="margin: 0 0 10px; color: var(--ink); font-size: 22px;">Yêu cầu đăng nhập</h3>
+      <p style="margin: 0 0 24px; font-size: 14px; color: var(--muted); line-height: 1.5;">Em cần đăng nhập để sử dụng tính năng Sổ thu chi. Dữ liệu của em sẽ được bảo mật và tự động lưu.</p>
+      <button class="primary" onclick="openAuthModal('login')" style="min-width: 200px;">Đăng nhập ngay</button>
+    </div></td></tr>`;
+    return;
+  }
+
   root.innerHTML = days.map((day, dayIndex) => {
     const entries = state.journal[dayIndex];
     const subtotal = entries.reduce((total, entry) => total + (Number(entry.amount) || 0), 0);
