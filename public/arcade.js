@@ -86,18 +86,35 @@ function startGame(gameId) {
   gameCanvas.hidden = true;
   domGame.hidden = true;
   gameOverlay.hidden = true;
+  document.getElementById("gameIntroOverlay").hidden = false;
   
   // Resize canvas
+  const gameViewport = document.getElementById("gameViewport");
   gameCanvas.width = gameViewport.clientWidth || 300;
   gameCanvas.height = gameViewport.clientHeight || 500;
   
-  gameState = { score: 0, hearts: 3, time: gameId === 1 ? 60 : (gameId === 2 ? 45 : 60), active: true, entities: [], lastTime: performance.now(), gameId };
-  updateGameHeader();
+  const intros = {
+    1: { title: "Đường đua lựa chọn", visual: "🏃 📖 💣", rules: "<ul><li>Dùng chuột kéo (hoặc phím Trái/Phải) để đổi làn.</li><li>Ăn <b>Nhu cầu</b> (📖, 🖊️, 🥦) để cộng điểm.</li><li>Né <b>Cạm bẫy</b> (💣, 💸) để không mất tim.</li><li>Cẩn thận với <b>Mong muốn</b> (🎮, 🧋).</li></ul>" },
+    2: { title: "Mắt thần mua sắm", visual: "⚔️ 🏷️ 🛡️", rules: "<ul><li>Kéo chuột hoặc vuốt để chém các thẻ bài rớt xuống.</li><li>Chém thẻ <b>Rủi ro</b> (Giá siêu rẻ, Không đổi trả) để lấy điểm.</li><li><b>Đừng chém</b> thẻ <b>Thông tin tốt</b> (Nguồn gốc rõ ràng, Có ảnh thật).</li><li>Chém đúng liên tục để kích hoạt làm chậm thời gian!</li></ul>" },
+    3: { title: "Nhịp mua thông minh", visual: "🎵 🎹 🎯", rules: "<ul><li>Các thẻ nhạc sẽ rơi xuống vạch đích ở dưới.</li><li>Bấm vào ô chứa <b>Bước mua sắm đúng</b> (Ví dụ: Xác định nhu cầu, Tìm hiểu thông tin...).</li><li><b>Không bấm</b> vào thẻ Cám dỗ (Mua ngay, Tin review...).</li></ul>" },
+    4: { title: "Xóa bẫy tiêu dùng", visual: "🧩 🔄 ✨", rules: "<ul><li>Kéo thả để đổi chỗ 2 biểu tượng cạnh nhau.</li><li>Ghép <b>3 biểu tượng rủi ro</b> (🔥, 📢, ❓...) để xóa chúng.</li><li>Ghép 4 để tạo Công cụ bảo vệ (🔍, 🛡️).</li><li>Chú ý thanh <b>Cám dỗ</b> ở trên, nếu nó đầy bạn sẽ mất 1 tim! Dùng Công cụ để giảm thanh này.</li></ul>" }
+  };
   
-  if (gameId === 1) startRunnerGame();
-  else if (gameId === 2) startSlicerGame();
-  else if (gameId === 3) startRhythmGame();
-  else if (gameId === 4) startMatch3Game();
+  document.getElementById("introTitle").textContent = intros[gameId].title;
+  document.getElementById("introVisual").innerHTML = intros[gameId].visual;
+  document.getElementById("introRules").innerHTML = intros[gameId].rules;
+  
+  const startBtn = document.getElementById("startBtn");
+  startBtn.onclick = () => {
+    document.getElementById("gameIntroOverlay").hidden = true;
+    gameState = { score: 0, hearts: 3, time: gameId === 1 ? 60 : (gameId === 2 ? 45 : 60), active: true, entities: [], lastTime: performance.now(), gameId };
+    updateGameHeader();
+    
+    if (gameId === 1) startRunnerGame();
+    else if (gameId === 2) startSlicerGame();
+    else if (gameId === 3) startRhythmGame();
+    else if (gameId === 4) startMatch3Game();
+  };
 }
 
 function updateGameHeader() {
@@ -182,9 +199,16 @@ function gameOver(reason) {
 function startRunnerGame() {
   gameCanvas.hidden = false;
   gameState.player = { lane: 1, y: gameCanvas.height - 100, targetLane: 1 };
-  gameState.speed = 200; // pixels per sec
+  gameState.speed = 250; // pixels per sec
   gameState.nextSpawn = 1;
   gameState.gates = 0;
+  gameState.budget = 500000;
+  gameState.floatingTexts = [];
+  gameState.scenarios = [
+    { q: "Đang khát nước. Nước lọc (10k) hay Trà sữa xịn (60k)?", c1: { t: "Nước lọc", right: true, msg: "Tốt lắm! Giải khát đúng nhu cầu, tiết kiệm tiền." }, c2: { t: "Trà sữa", right: false, msg: "Trà sữa ngon nhưng đắt! Hãy ưu tiên nhu cầu trước." } },
+    { q: "Thấy đôi giày đang giảm giá 50%, nhưng em đã có 2 đôi giày tốt ở nhà.", c1: { t: "Không mua", right: true, msg: "Tuyệt vời! Không bị sập bẫy giảm giá." }, c2: { t: "Mua ngay", right: false, msg: "Mua đồ không cần thiết chỉ vì rẻ là lãng phí!" } },
+    { q: "Bạn rủ mua chung thẻ bài game để lấy đồ hiếm.", c1: { t: "Từ chối", right: true, msg: "Rất tỉnh táo! Không mua hùa theo bạn bè." }, c2: { t: "Mua cùng", right: false, msg: "Chạy theo trào lưu sẽ làm em nhẵn túi!" } }
+  ];
   
   gameCanvas.addEventListener("touchstart", handleTouchStart, {passive: false});
   gameCanvas.addEventListener("touchmove", handleTouchMove, {passive: false});
@@ -236,12 +260,37 @@ function runnerLoop(time) {
   }
   
   // Decision Gate every 15s
-  if (Math.floor(gameState.time) % 15 === 0 && Math.floor(gameState.time) < 60 && gameState.gates < (4 - Math.floor(gameState.time)/15)) {
+  if (Math.floor(gameState.time) > 0 && Math.floor(gameState.time) % 15 === 0 && gameState.gates < 3 && gameState.gates < (4 - Math.floor(gameState.time)/15)) {
+    let scenario = gameState.scenarios[gameState.gates];
     gameState.gates++;
-    showOverlay("Cổng Quyết Định", "Em có 100.000đ. Vở chưa mua, nhưng áo đang giảm giá 50%.\nEm chọn làn nào?", "Tiếp tục", () => {
-      // In a real game, they'd have to physically choose the lane. Here we just give a small hint.
-      alert("Đã tiếp tục! Chú ý ưu tiên Nhu cầu nhé.");
-    });
+    
+    gameState.active = false;
+    document.getElementById("overlayTitle").textContent = "Cổng Quyết Định";
+    document.getElementById("overlayText").textContent = scenario.q;
+    const actions = document.getElementById("overlayActions");
+    actions.innerHTML = `<button class="ghost" id="btnC1">${scenario.c1.t}</button><button class="primary" id="btnC2">${scenario.c2.t}</button>`;
+    
+    const handleChoice = (choice) => {
+      gameOverlay.hidden = true;
+      if (choice.right) {
+        gameState.score += 20;
+        gameState.floatingTexts.push({ x: gameCanvas.width/2, y: 200, text: choice.msg, color: "#22c55e", age: 0 });
+      } else {
+        gameState.hearts--;
+        gameState.floatingTexts.push({ x: gameCanvas.width/2, y: 200, text: choice.msg, color: "#ef4444", age: 0 });
+      }
+      updateGameHeader();
+      gameState.active = true;
+      gameState.lastTime = performance.now();
+      if (gameState.hearts <= 0) gameOver("Hết tim");
+      else requestAnimationFrame(runnerLoop);
+    };
+    
+    document.getElementById("btnC1").onclick = () => handleChoice(scenario.c1);
+    document.getElementById("btnC2").onclick = () => handleChoice(scenario.c2);
+    
+    gameOverlay.hidden = false;
+    return;
   }
   
   // Update Entities & Collision
@@ -260,13 +309,20 @@ function runnerLoop(time) {
       if (Math.abs(e.lane - gameState.player.lane) < 0.5) {
         if (e.type === "need") {
           gameState.score += 10;
+          gameState.floatingTexts.push({ x: e.lane * laneWidth + laneWidth/2, y: e.y - 40, text: "Đúng nhu cầu! +10", color: "#22c55e", age: 0 });
         } else if (e.type === "trap") {
           gameState.hearts--;
+          gameState.floatingTexts.push({ x: e.lane * laneWidth + laneWidth/2, y: e.y - 40, text: "Cạm bẫy! Mất tim", color: "#ef4444", age: 0 });
           if (gameState.hearts <= 0) return gameOver("Hết tim");
         } else if (e.type === "want") {
-          // No points, brief message
-          ctx.fillStyle = "black";
-          ctx.fillText("Mong muốn", e.lane * laneWidth + laneWidth/2, e.y - 20);
+          gameState.budget -= 50000;
+          gameState.floatingTexts.push({ x: e.lane * laneWidth + laneWidth/2, y: e.y - 40, text: "-50k (Mong muốn)", color: "#f59e0b", age: 0 });
+          if (gameState.budget <= 0) {
+            gameState.hearts--;
+            gameState.floatingTexts.push({ x: gameCanvas.width/2, y: 150, text: "Hết sạch tiền!", color: "#ef4444", age: 0 });
+            gameState.budget = 500000;
+            if (gameState.hearts <= 0) return gameOver("Hết tiền");
+          }
         }
         gameState.entities.splice(i, 1);
         updateGameHeader();
@@ -290,12 +346,41 @@ function runnerLoop(time) {
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
   for (let e of gameState.entities) {
+    if (e.type === "trap") {
+      ctx.fillStyle = "rgba(239, 68, 68, 0.2)"; // Red glow
+      ctx.beginPath(); ctx.arc(e.lane * laneWidth + laneWidth/2, e.y, 25, 0, Math.PI*2); ctx.fill();
+    } else if (e.type === "need") {
+      ctx.fillStyle = "rgba(34, 197, 94, 0.2)"; // Green glow
+      ctx.beginPath(); ctx.arc(e.lane * laneWidth + laneWidth/2, e.y, 25, 0, Math.PI*2); ctx.fill();
+    }
     ctx.fillText(e.icon, e.lane * laneWidth + laneWidth/2, e.y);
   }
   
   // Draw Player
   ctx.font = "40px Arial";
   ctx.fillText("🏃", gameState.player.lane * laneWidth + laneWidth/2, gameState.player.y);
+  
+  // Draw Budget
+  ctx.fillStyle = "#fff";
+  ctx.font = "bold 20px Arial";
+  ctx.textAlign = "right";
+  ctx.fillText(`Ngân sách: ${gameState.budget.toLocaleString()}đ`, gameCanvas.width - 10, 30);
+  
+  // Draw Floating Texts
+  for (let i = gameState.floatingTexts.length - 1; i >= 0; i--) {
+    let ft = gameState.floatingTexts[i];
+    ft.age += dt;
+    if (ft.age > 1.5) {
+      gameState.floatingTexts.splice(i, 1);
+      continue;
+    }
+    ctx.globalAlpha = 1 - (ft.age / 1.5);
+    ctx.fillStyle = ft.color;
+    ctx.font = "bold 20px Arial";
+    ctx.textAlign = "center";
+    ctx.fillText(ft.text, ft.x, ft.y - ft.age * 50);
+    ctx.globalAlpha = 1;
+  }
   
   gameLoopId = requestAnimationFrame(runnerLoop);
 }
@@ -578,6 +663,38 @@ function rhythmLoop(time) {
   gameLoopId = requestAnimationFrame(rhythmLoop);
 }
 
+function updateTemptBar() {
+  const bar = document.getElementById("temptBar");
+  if(bar) bar.style.width = `${gameState.temptation}%`;
+}
+
+function showDOMFloatingText(col, row, text, color, offsetY = 0) {
+  const container = document.getElementById("mFloatContainer");
+  if (!container) return;
+  const el = document.createElement("div");
+  el.textContent = text;
+  el.style.position = "absolute";
+  el.style.left = `calc(${(col + 0.5) * (100/6)}%)`;
+  el.style.top = `calc(${(row + 0.5) * (100/6)}% + ${offsetY}px)`;
+  el.style.transform = "translate(-50%, -50%)";
+  el.style.color = color;
+  el.style.fontWeight = "bold";
+  el.style.fontSize = "16px";
+  el.style.textShadow = "0 2px 4px rgba(0,0,0,0.8)";
+  el.style.pointerEvents = "none";
+  el.style.transition = "all 1s ease-out";
+  el.style.whiteSpace = "nowrap";
+  el.style.zIndex = "100";
+  container.appendChild(el);
+  
+  setTimeout(() => {
+    el.style.top = `calc(${(row + 0.5) * (100/6)}% - 50px + ${offsetY}px)`;
+    el.style.opacity = "0";
+  }, 50);
+  
+  setTimeout(() => el.remove(), 1050);
+}
+
 // ----------------------------------------------------
 // GAME 4: MATCH-3 (Xóa bẫy tiêu dùng)
 // ----------------------------------------------------
@@ -587,17 +704,30 @@ function startMatch3Game() {
   gameState.selected = null;
   gameState.temptation = 0;
   
-  const icons = ["🔥", "📢", "👥", "🏷️", "❓"];
-  const toolIcons = ["🔍", "👛", "📝", "🛡️"];
+  gameState.iconMeanings = {
+    0: { icon: "🔥", desc: "FOMO" },
+    1: { icon: "📢", desc: "Quảng cáo lố" },
+    2: { icon: "👥", desc: "Theo bạn bè" },
+    3: { icon: "🏷️", desc: "Bẫy giảm giá" },
+    4: { icon: "❓", desc: "Hàng trôi nổi" }
+  };
   
+  gameState.toolMeanings = [
+    { icon: "🔍", desc: "Kính lúp" },
+    { icon: "👛", desc: "Ví tiền" },
+    { icon: "📝", desc: "Danh sách" },
+    { icon: "🛡️", desc: "Khiên" }
+  ];
+
   domGame.innerHTML = `
-    <div class="matchTopBar">
-      <div class="matchEventCard" id="matchEventCard">Ghép 3 biểu tượng rủi ro để xóa chúng. Ghép 4 để tạo công cụ!</div>
-      <div class="matchTemptation">
-        <div class="matchTemptationFill" id="matchTemptationFill" style="width: 0%"></div>
+    <div style="color:white; text-align:center; padding-bottom: 8px; font-weight: bold;">
+      Chỉ số Cám dỗ tiêu tiền
+      <div style="width:100%; background:#1e293b; height:12px; border-radius:6px; margin-top:4px; position:relative; overflow:hidden;">
+        <div id="temptBar" style="width:0%; height:100%; background:linear-gradient(90deg, #22c55e, #f59e0b, #ef4444); transition: width 0.3s;"></div>
       </div>
     </div>
-    <div class="matchBoard" id="matchBoard"></div>
+    <div class="matchBoard" id="matchBoard" style="position:relative;"></div>
+    <div id="mFloatContainer" style="position: absolute; inset: 0; pointer-events: none; z-index: 50;"></div>
   `;
   
   const boardEl = document.getElementById("matchBoard");
@@ -631,10 +761,9 @@ function startMatch3Game() {
       gameState.temptation = 0;
       gameState.hearts--;
       updateGameHeader();
-      document.getElementById("matchEventCard").textContent = "Em đã bị cám dỗ! Mất 1 tim.";
       if (gameState.hearts <= 0) gameOver("Hết tim");
     }
-    document.getElementById("matchTemptationFill").style.width = `${gameState.temptation}%`;
+    updateTemptBar();
   }, 1000);
 }
 
@@ -642,7 +771,7 @@ function renderMatchBoard() {
   const boardEl = document.getElementById("matchBoard");
   boardEl.innerHTML = ""; // lazy re-render
   
-  const icons = ["🔥", "📢", "👥", "🏷️", "❓", "🔍", "👛", "📝", "🛡️"];
+  const icons = ["🔥", "📢", "👥", "🏷️", "❓"];
   
   for (let r=0; r<6; r++) {
     for (let c=0; c<6; c++) {
@@ -657,7 +786,7 @@ function renderMatchBoard() {
           item.style.zIndex = "10";
           item.style.boxShadow = "0 0 10px #fff";
         }
-        item.textContent = icons[gameState.board[r][c].type];
+        item.textContent = gameState.board[r][c].special ? gameState.board[r][c].special : icons[gameState.board[r][c].type];
         
         item.onmousedown = () => handleMatchClick(r, c);
         item.ontouchstart = (e) => { e.preventDefault(); handleMatchClick(r, c); };
@@ -670,12 +799,18 @@ function renderMatchBoard() {
 }
 
 function handleMatchClick(r, c) {
-  if (gameState.board[r][c].type >= 5) {
+  if (gameState.board[r][c].type === -1) {
     // Used a tool!
     gameState.score += 15;
     gameState.temptation = Math.max(0, gameState.temptation - 30);
-    const tools = ["Kính lúp", "Ví tiền", "Danh sách", "Khiên"];
-    document.getElementById("matchEventCard").textContent = `Em đã dùng ${tools[gameState.board[r][c].type - 5]} để vượt qua cám dỗ!`;
+    updateTemptBar();
+    
+    let toolDesc = "Công cụ bảo vệ";
+    for (let tm of gameState.toolMeanings) {
+      if (tm.icon === gameState.board[r][c].special) toolDesc = tm.desc;
+    }
+    showDOMFloatingText(c, r, `Dùng ${toolDesc}!`, "#22c55e", -40);
+    
     gameState.board[r][c] = { type: Math.floor(Math.random() * 5), r, c }; // reset to random
     updateGameHeader();
     renderMatchBoard();
@@ -691,9 +826,12 @@ function handleMatchClick(r, c) {
     const sr = gameState.selected.r, sc = gameState.selected.c;
     if ((Math.abs(sr - r) === 1 && sc === c) || (Math.abs(sc - c) === 1 && sr === r)) {
       // Swap data
-      let temp = gameState.board[sr][sc].type;
+      let tempType = gameState.board[sr][sc].type;
+      let tempSpecial = gameState.board[sr][sc].special;
       gameState.board[sr][sc].type = gameState.board[r][c].type;
-      gameState.board[r][c].type = temp;
+      gameState.board[sr][sc].special = gameState.board[r][c].special;
+      gameState.board[r][c].type = tempType;
+      gameState.board[r][c].special = tempSpecial;
       
       gameState.selected = null;
       renderMatchBoard();
@@ -713,7 +851,7 @@ function checkMatches() {
   for (let r=0; r<6; r++) {
     for (let c=0; c<4; c++) {
       let type = gameState.board[r][c].type;
-      if (type >= 5) continue; // tools don't match
+      if (type === -1) continue; // tools don't match
       if (gameState.board[r][c+1].type === type && gameState.board[r][c+2].type === type) {
         matched.push({r, c}, {r, c: c+1}, {r, c: c+2});
       }
@@ -723,7 +861,7 @@ function checkMatches() {
   for (let c=0; c<6; c++) {
     for (let r=0; r<4; r++) {
       let type = gameState.board[r][c].type;
-      if (type >= 5) continue;
+      if (type === -1) continue;
       if (gameState.board[r+1][c].type === type && gameState.board[r+2][c].type === type) {
         matched.push({r, c}, {r: r+1, c}, {r: r+2, c});
       }
@@ -731,18 +869,33 @@ function checkMatches() {
   }
   
   if (matched.length > 0) {
-    gameState.score += matched.length * 2;
+    // unique matches
+    let unique = [];
+    matched.forEach(m => {
+      if (!unique.find(u => u.r === m.r && u.c === m.c)) unique.push(m);
+    });
+    
+    gameState.score += unique.length * 2;
     updateGameHeader();
     
+    let removedType = gameState.board[unique[0].r][unique[0].c].type;
+    
     // Clear and drop (simplified for prototype)
-    matched.forEach(m => {
+    unique.forEach(m => {
       gameState.board[m.r][m.c] = null;
     });
     
-    // Create tool if match >= 4 (simplified logic, just random chance if matched > 3)
-    if (matched.length >= 4) {
-      let m = matched[0];
-      gameState.board[m.r][m.c] = { type: 5 + Math.floor(Math.random() * 4), r: m.r, c: m.c };
+    if (removedType !== -1 && gameState.iconMeanings[removedType]) {
+      let centerP = unique[Math.floor(unique.length/2)];
+      showDOMFloatingText(centerP.c, centerP.r, `Đã xóa: ${gameState.iconMeanings[removedType].desc}!`, "#fff");
+    }
+    
+    // Create tool if match >= 4 
+    if (unique.length >= 4) {
+      let m = unique[0];
+      const tool = gameState.toolMeanings[Math.floor(Math.random() * gameState.toolMeanings.length)];
+      gameState.board[m.r][m.c] = { type: -1, special: tool.icon, r: m.r, c: m.c };
+      showDOMFloatingText(m.c, m.r, "Tạo " + tool.desc + "!", "#38bdf8");
     }
     
     // Fill empty
