@@ -1,0 +1,359 @@
+/* ARCADE CSS */
+
+#arcadeMenu {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.arcadeStatus {
+  background: var(--surface);
+  border-radius: 16px;
+  padding: 16px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+}
+
+.arcadeStars {
+  font-size: 18px;
+  font-weight: 700;
+  color: #f59e0b;
+}
+
+#totalArcadeStars {
+  font-size: 24px;
+}
+
+.arcadeBadges {
+  display: flex;
+  gap: 8px;
+}
+
+.badgeIcon {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: #f1f5f9;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+  opacity: 0.4;
+  filter: grayscale(1);
+  transition: all 0.3s;
+}
+
+.badgeIcon.unlocked {
+  opacity: 1;
+  filter: none;
+  background: #e0f2fe;
+  box-shadow: 0 0 10px rgba(14, 165, 233, 0.4);
+}
+
+.arcadeGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 16px;
+}
+
+.arcadeBtn {
+  background: #fff;
+  border: 2px solid var(--line);
+  border-radius: 16px;
+  padding: 24px;
+  text-align: left;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.arcadeBtn:hover {
+  border-color: var(--blue);
+  transform: translateY(-4px);
+  box-shadow: 0 8px 16px rgba(0,0,0,0.1);
+}
+
+.arcadeBtn .aIcon {
+  font-size: 40px;
+  margin-bottom: 8px;
+}
+
+.arcadeBtn h3 {
+  margin: 0;
+  font-size: 18px;
+  color: var(--ink);
+}
+
+.arcadeBtn p {
+  margin: 0;
+  font-size: 14px;
+  color: var(--muted);
+}
+
+.aStars {
+  font-size: 18px;
+  color: #f59e0b;
+  letter-spacing: 2px;
+  margin-top: auto;
+}
+
+/* GAME VIEWPORT */
+#gameViewport {
+  background: #0f172a;
+  border-radius: 16px;
+  overflow: hidden;
+  position: relative;
+  width: 100%;
+  max-width: 600px;
+  margin: 0 auto;
+  aspect-ratio: 9/16;
+  max-height: 80vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.gameHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 16px;
+  background: rgba(0,0,0,0.5);
+  color: #fff;
+  z-index: 10;
+}
+
+.gameHeader .ghost {
+  color: #fff;
+  border-color: rgba(255,255,255,0.3);
+  padding: 4px 12px;
+  font-size: 14px;
+}
+
+.gameStats {
+  display: flex;
+  gap: 16px;
+  font-weight: 600;
+}
+
+#gameContainer {
+  flex: 1;
+  position: relative;
+  overflow: hidden;
+}
+
+#gameCanvas {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+#domGame {
+  width: 100%;
+  height: 100%;
+  position: absolute;
+  top: 0;
+  left: 0;
+  overflow: hidden;
+}
+
+#gameOverlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.9);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 20;
+  padding: 24px;
+  text-align: center;
+}
+
+.overlayContent {
+  background: #fff;
+  padding: 32px;
+  border-radius: 16px;
+  width: 100%;
+  max-width: 320px;
+}
+
+.overlayContent h3 {
+  margin: 0 0 16px;
+  font-size: 24px;
+  color: var(--ink);
+}
+
+.overlayContent p {
+  margin: 0 0 24px;
+  color: var(--muted);
+  font-size: 16px;
+  line-height: 1.5;
+}
+
+#overlayActions {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+}
+
+.arcadeResult {
+  text-align: center;
+  padding: 32px;
+  background: #f8fafc;
+  border-radius: 16px;
+  border: 1px solid var(--line);
+}
+
+/* GAME 3: Rhythm */
+.rhythmGrid {
+  display: flex;
+  width: 100%;
+  height: 100%;
+  background: #1e293b;
+}
+
+.rhythmCol {
+  flex: 1;
+  border-right: 1px solid rgba(255,255,255,0.1);
+  position: relative;
+}
+
+.rhythmCol:last-child {
+  border-right: none;
+}
+
+.rhythmTile {
+  position: absolute;
+  width: 100%;
+  height: 100px;
+  background: #38bdf8;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-weight: 600;
+  font-size: 12px;
+  text-align: center;
+  padding: 8px;
+  box-sizing: border-box;
+  cursor: pointer;
+  border-radius: 8px;
+  transform: translateY(-100%); /* Start above */
+  transition: transform linear;
+  box-shadow: inset 0 -4px 0 rgba(0,0,0,0.2);
+  user-select: none;
+}
+
+.rhythmTile.trap {
+  background: #f43f5e;
+}
+
+.rhythmTile.clicked {
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+.rhythmTile.missed {
+  background: #94a3b8;
+}
+
+.rhythmTarget {
+  position: absolute;
+  bottom: 20px;
+  left: 0;
+  width: 100%;
+  height: 100px;
+  border-top: 2px dashed rgba(255,255,255,0.5);
+  border-bottom: 2px dashed rgba(255,255,255,0.5);
+  pointer-events: none;
+}
+
+/* GAME 4: Match 3 */
+.matchBoard {
+  width: 100%;
+  aspect-ratio: 1;
+  background: #334155;
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  grid-template-rows: repeat(6, 1fr);
+  gap: 2px;
+  padding: 4px;
+  box-sizing: border-box;
+  margin-top: auto;
+}
+
+.matchCell {
+  background: #1e293b;
+  border-radius: 8px;
+  position: relative;
+}
+
+.matchItem {
+  position: absolute;
+  inset: 2px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 32px;
+  cursor: grab;
+  user-select: none;
+  transition: transform 0.2s, top 0.3s, left 0.3s;
+  z-index: 2;
+  border-radius: 8px;
+}
+
+.matchItem:active {
+  cursor: grabbing;
+  z-index: 10;
+  transform: scale(1.1);
+}
+
+.matchItem.type-0 { background: #fecdd3; } /* Lửa */
+.matchItem.type-1 { background: #fef08a; } /* Loa */
+.matchItem.type-2 { background: #bfdbfe; } /* Nhóm bạn */
+.matchItem.type-3 { background: #e9d5ff; } /* Nhãn giảm giá */
+.matchItem.type-4 { background: #cbd5e1; } /* Dấu hỏi */
+
+.matchItem.type-5 { background: #bbf7d0; box-shadow: 0 0 10px #22c55e; } /* Kính lúp (công cụ) */
+.matchItem.type-6 { background: #bbf7d0; box-shadow: 0 0 10px #22c55e; } /* Ví tiền */
+.matchItem.type-7 { background: #bbf7d0; box-shadow: 0 0 10px #22c55e; } /* Danh sách */
+.matchItem.type-8 { background: #bbf7d0; box-shadow: 0 0 10px #22c55e; } /* Khiên */
+
+.matchTopBar {
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.matchEventCard {
+  background: #fff;
+  border-radius: 8px;
+  padding: 12px;
+  font-size: 14px;
+  color: var(--ink);
+  font-weight: 500;
+  text-align: center;
+  min-height: 60px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.matchTemptation {
+  width: 100%;
+  height: 12px;
+  background: #ef4444;
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.matchTemptationFill {
+  height: 100%;
+  background: #4ade80;
+  width: 100%;
+  transition: width 0.3s;
+}
