@@ -20,10 +20,11 @@ test("serves the learning site at the root URL", async () => {
 });
 
 test("contains the six-stage mobile learning journey", async () => {
-  const [html, js, css, worker] = await Promise.all([
+  const [html, js, css, refinements, worker] = await Promise.all([
     readFile(new URL("../public/index.html", import.meta.url), "utf8"),
     readFile(new URL("../public/static.js", import.meta.url), "utf8"),
     readFile(new URL("../public/static.css", import.meta.url), "utf8"),
+    readFile(new URL("../public/refinements.css", import.meta.url), "utf8"),
     readFile(new URL("../worker/index.ts", import.meta.url), "utf8"),
   ]);
   for (let i = 0; i < 6; i++) assert.match(html, new RegExp(`data-panel="${i}"`));
@@ -36,11 +37,15 @@ test("contains the six-stage mobile learning journey", async () => {
   assert.match(js, /const QUESTION_COUNT = 5/);
   assert.match(js, /const adBank = \[/);
   assert.match(js, /const situationBank = \[/);
+  assert.match(js, /const MIN_RESPONSE_LENGTH = 12/);
+  assert.match(js, /id="previousOpen"/);
   assert.match(js, /root\.querySelector\("\[data-continue\]"\)/);
   assert.match(html, /class="journalTable"/);
   assert.match(css, /@media\(max-width:560px\)/);
   assert.match(css, /touch-action:manipulation/);
   assert.match(css, /expenseRow/);
+  assert.match(refinements, /adCreative/);
+  assert.match(refinements, /situationCreative/);
   assert.match(worker, /public\/index\.html\?raw/);
   assert.doesNotMatch(worker, /app-router-entry/);
 });

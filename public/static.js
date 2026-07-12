@@ -1,5 +1,6 @@
 const steps = ["Trang chủ", "Mục tiêu", "Bài học", "Quảng cáo", "Tình huống", "Vận dụng"];
 const QUESTION_COUNT = 5;
+const MIN_RESPONSE_LENGTH = 12;
 
 const adBank = [
   { title: "Trà sữa đồng giá 9.000đ", copy: "Đặt ngay trong 5 phút — số lượng có hạn!", q: "Trước khi đặt mua, em sẽ kiểm tra những thông tin nào? Vì sao?", hint: "Gợi ý: tên cửa hàng, đánh giá, phí giao hàng, nguyên liệu và nhu cầu thật của em." },
@@ -124,10 +125,26 @@ function renderOpenActivity(type) {
   const questionIndex = state[setKey][position];
   const question = bank[questionIndex];
   const response = state[responseKey]?.[questionIndex] || "";
-  root.innerHTML = `<div class="openQuestion"><div class="meta"><span>CÂU ${position + 1}/${QUESTION_COUNT}</span><span>${"●".repeat(position + 1)}${"○".repeat(QUESTION_COUNT - position - 1)}</span></div><h3>${question.title}</h3><p>${question.copy}</p><div class="hintBox"><b>Gợi ý</b><span>${question.hint}</span></div><label>Trả lời của em<textarea id="openResponse" placeholder="Viết suy nghĩ và cách xử lí của em ở đây...">${escapeHtml(response)}</textarea></label><div class="openActions"><small>Hãy nêu rõ lí do cho lựa chọn của em.</small><button class="primary" id="saveOpenAnswer" ${response.trim().length < 8 ? "disabled" : ""}>${position === QUESTION_COUNT - 1 ? "Lưu câu trả lời" : "Lưu & câu tiếp theo →"}</button></div></div>`;
+  const modeClass = isAd ? "adMode" : "situationMode";
+  const context = isAd
+    ? `<aside class="activityContext adCreative"><span class="contextLabel">QUẢNG CÁO GIẢ LẬP</span><div class="contextIcon">!</div><h3>${question.title}</h3><p>${question.copy}</p><div class="fakeCta">ƯU ĐÃI CÓ HẠN</div><div class="contextFoot">⚠ Hãy dừng lại và kiểm tra trước khi quyết định mua.</div></aside>`
+    : `<aside class="activityContext situationCreative"><span class="contextLabel">TÌNH HUỐNG THỰC TẾ</span><div class="contextIcon">?</div><h3>${question.title}</h3><p>${question.copy}</p><div class="thinkingPrompt">💭 Nếu là nhân vật trong tình huống này, em sẽ làm gì?</div></aside>`;
+  root.innerHTML = `<div class="openActivity ${modeClass}">${context}<div class="openQuestion"><div class="responseTop"><div><span class="taskLabel">NHIỆM VỤ CỦA EM</span><h3>${question.q}</h3></div><div class="progressDots" aria-label="Tiến độ câu hỏi">${Array.from({ length: QUESTION_COUNT }, (_, index) => `<i class="${index < position ? "done" : index === position ? "current" : ""}"></i>`).join("")}</div></div><div class="hintBox"><b>Gợi ý</b><span>${question.hint}</span></div><label class="responseLabel">Trả lời của em<textarea id="openResponse" placeholder="Viết suy nghĩ và cách xử lí của em ở đây...">${escapeHtml(response)}</textarea><span id="responseCount">${response.trim().length} ký tự</span></label><div class="openActions"><button class="ghost" id="previousOpen" ${position === 0 ? "disabled" : ""}>← Câu trước</button><button class="primary" id="saveOpenAnswer" ${response.trim().length < MIN_RESPONSE_LENGTH ? "disabled" : ""}>${position === QUESTION_COUNT - 1 ? "Lưu câu trả lời" : "Lưu & câu tiếp theo →"}</button></div></div></div>`;
   const textarea = root.querySelector("#openResponse");
   const saveButton = root.querySelector("#saveOpenAnswer");
-  textarea.addEventListener("input", () => { saveButton.disabled = textarea.value.trim().length < 8; });
+  const previousButton = root.querySelector("#previousOpen");
+  const responseCount = root.querySelector("#responseCount");
+  textarea.addEventListener("input", () => {
+    const count = textarea.value.trim().length;
+    responseCount.textContent = `${count} ký tự${count < MIN_RESPONSE_LENGTH ? ` · cần ít nhất ${MIN_RESPONSE_LENGTH}` : ""}`;
+    saveButton.disabled = count < MIN_RESPONSE_LENGTH;
+  });
+  previousButton.addEventListener("click", () => {
+    state[responseKey] = { ...state[responseKey], [questionIndex]: textarea.value.trim() };
+    state[positionKey] = Math.max(0, position - 1);
+    save();
+    renderOpenActivity(type);
+  });
   saveButton.addEventListener("click", () => {
     state[responseKey] = { ...state[responseKey], [questionIndex]: textarea.value.trim() };
     state[positionKey] = position + 1;
