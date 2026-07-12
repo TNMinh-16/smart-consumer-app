@@ -93,10 +93,10 @@ function startGame(gameId) {
   gameCanvas.height = gameViewport.clientHeight || 500;
   
   const intros = {
-    1: { title: "Đường đua lựa chọn", visual: "🏃 📖 💣", rules: "<ul><li>Dùng chuột kéo (hoặc phím Trái/Phải) để đổi làn.</li><li>Ăn <b>Nhu cầu</b> (📖, 🖊️, 🥦) để cộng điểm.</li><li>Né <b>Cạm bẫy</b> (💣, 💸) để không mất tim.</li><li>Cẩn thận với <b>Mong muốn</b> (🎮, 🧋).</li></ul>" },
+    1: { title: "Giỏ hàng thông thái", visual: "🛒 📝 💰", rules: "<ul><li>Di chuột hoặc vuốt để di chuyển giỏ hàng.</li><li>Hứng các món đồ <b>Nhu cầu</b> (Gạo, Sữa, Sách) trong danh sách để hoàn thành mục tiêu.</li><li>Nếu hứng nhầm <b>Mong muốn</b> (Đồ chơi, Trà sữa) sẽ bị trừ Ngân sách.</li><li>Trò chơi kết thúc nếu Ngân sách cạn kiệt!</li></ul>" },
     2: { title: "Mắt thần mua sắm", visual: "⚔️ 🏷️ 🛡️", rules: "<ul><li>Kéo chuột hoặc vuốt để chém các thẻ bài rớt xuống.</li><li>Chém thẻ <b>Rủi ro</b> (Giá siêu rẻ, Không đổi trả) để lấy điểm.</li><li><b>Đừng chém</b> thẻ <b>Thông tin tốt</b> (Nguồn gốc rõ ràng, Có ảnh thật).</li><li>Chém đúng liên tục để kích hoạt làm chậm thời gian!</li></ul>" },
     3: { title: "Nhịp mua thông minh", visual: "🎵 🎹 🎯", rules: "<ul><li>Các thẻ nhạc sẽ rơi xuống vạch đích ở dưới.</li><li>Bấm vào ô chứa <b>Bước mua sắm đúng</b> (Ví dụ: Xác định nhu cầu, Tìm hiểu thông tin...).</li><li><b>Không bấm</b> vào thẻ Cám dỗ (Mua ngay, Tin review...).</li></ul>" },
-    4: { title: "Xóa bẫy tiêu dùng", visual: "🧩 🔄 ✨", rules: "<ul><li>Kéo thả để đổi chỗ 2 biểu tượng cạnh nhau.</li><li>Ghép <b>3 biểu tượng rủi ro</b> (🔥, 📢, ❓...) để xóa chúng.</li><li>Ghép 4 để tạo Công cụ bảo vệ (🔍, 🛡️).</li><li>Chú ý thanh <b>Cám dỗ</b> ở trên, nếu nó đầy bạn sẽ mất 1 tim! Dùng Công cụ để giảm thanh này.</li></ul>" }
+    4: { title: "Bảo vệ túi tiền", visual: "🛡️ 💰 ⚔️", rules: "<ul><li>Các Cám dỗ sẽ tấn công túi tiền của bạn từ 4 phía.</li><li>Sử dụng các <b>Lá chắn</b> tương ứng (🔍 Kính lúp, 🛡️ Kiên định, 📝 Danh sách, ⏱️ Chờ 24h) để tiêu diệt cám dỗ.</li><li>Chọn sai lá chắn hoặc để cám dỗ chạm vào ví, bạn sẽ mất 1 tim!</li></ul>" }
   };
   
   document.getElementById("introTitle").textContent = intros[gameId].title;
@@ -109,10 +109,10 @@ function startGame(gameId) {
     gameState = { score: 0, hearts: 3, time: gameId === 1 ? 60 : (gameId === 2 ? 45 : 60), active: true, entities: [], lastTime: performance.now(), gameId };
     updateGameHeader();
     
-    if (gameId === 1) startRunnerGame();
+    if (gameId === 1) startCartGame();
     else if (gameId === 2) startSlicerGame();
     else if (gameId === 3) startRhythmGame();
-    else if (gameId === 4) startMatch3Game();
+    else if (gameId === 4) startDefenseGame();
   };
 }
 
@@ -193,195 +193,179 @@ function gameOver(reason) {
 }
 
 // ----------------------------------------------------
-// GAME 1: RUNNER (Đường đua lựa chọn)
+// GAME 1: CART (Giỏ hàng thông thái)
 // ----------------------------------------------------
-function startRunnerGame() {
+function startCartGame() {
   gameCanvas.hidden = false;
-  gameState.player = { lane: 1, y: gameCanvas.height - 100, targetLane: 1 };
-  gameState.speed = 250; // pixels per sec
-  gameState.nextSpawn = 1;
-  gameState.gates = 0;
+  
+  // Game Setup
+  gameState.cart = { x: gameCanvas.width / 2, width: 80, height: 40 };
   gameState.budget = 500000;
-  gameState.floatingTexts = [];
-  gameState.scenarios = [
-    { q: "Đang khát nước. Nước lọc (10k) hay Trà sữa xịn (60k)?", c1: { t: "Nước lọc", right: true, msg: "Tốt lắm! Giải khát đúng nhu cầu, tiết kiệm tiền." }, c2: { t: "Trà sữa", right: false, msg: "Trà sữa ngon nhưng đắt! Hãy ưu tiên nhu cầu trước." } },
-    { q: "Thấy đôi giày đang giảm giá 50%, nhưng em đã có 2 đôi giày tốt ở nhà.", c1: { t: "Không mua", right: true, msg: "Tuyệt vời! Không bị sập bẫy giảm giá." }, c2: { t: "Mua ngay", right: false, msg: "Mua đồ không cần thiết chỉ vì rẻ là lãng phí!" } },
-    { q: "Bạn rủ mua chung thẻ bài game để lấy đồ hiếm.", c1: { t: "Từ chối", right: true, msg: "Rất tỉnh táo! Không mua hùa theo bạn bè." }, c2: { t: "Mua cùng", right: false, msg: "Chạy theo trào lưu sẽ làm em nhẵn túi!" } }
+  gameState.needs = [
+    { type: 'Gạo', icon: '🍚', count: 2, collected: 0, price: 100000 },
+    { type: 'Sữa', icon: '🥛', count: 3, collected: 0, price: 50000 },
+    { type: 'Sách', icon: '📚', count: 2, collected: 0, price: 40000 }
   ];
+  gameState.items = [];
+  gameState.nextSpawn = 1;
+  gameState.speed = 150;
+  gameState.floatingTexts = [];
   
-  gameCanvas.addEventListener("touchstart", handleTouchStart, {passive: false});
-  gameCanvas.addEventListener("touchmove", handleTouchMove, {passive: false});
-  gameCanvas.addEventListener("touchend", handleTouchEnd, {passive: false});
-  window.addEventListener("keydown", handleKeyDown);
+  // Mouse / Touch controls
+  const updateCartPos = (clientX) => {
+    const rect = gameCanvas.getBoundingClientRect();
+    const x = clientX - rect.left;
+    gameState.cart.x = Math.max(gameState.cart.width/2, Math.min(gameCanvas.width - gameState.cart.width/2, x));
+  };
   
-  requestAnimationFrame(runnerLoop);
+  gameCanvas.onmousemove = (e) => updateCartPos(e.clientX);
+  gameCanvas.ontouchmove = (e) => { e.preventDefault(); updateCartPos(e.touches[0].clientX); };
+  
+  cartLoop();
 }
 
-// Touch Handling (Swipe)
-let touchStartX = 0;
-function handleTouchStart(e) { touchStartX = e.touches[0].clientX; e.preventDefault(); }
-function handleTouchMove(e) { e.preventDefault(); }
-function handleTouchEnd(e) {
-  const dx = e.changedTouches[0].clientX - touchStartX;
-  if (Math.abs(dx) > 30) {
-    if (dx > 0 && gameState.player.targetLane < 2) gameState.player.targetLane++;
-    else if (dx < 0 && gameState.player.targetLane > 0) gameState.player.targetLane--;
-  }
-}
-function handleKeyDown(e) {
-  if (e.key === "ArrowLeft" && gameState.player.targetLane > 0) gameState.player.targetLane--;
-  if (e.key === "ArrowRight" && gameState.player.targetLane < 2) gameState.player.targetLane++;
-}
-
-function runnerLoop(time) {
+function cartLoop() {
   if (!gameState.active) return;
-  const dt = (time - gameState.lastTime) / 1000;
-  gameState.lastTime = time;
-  
+  const now = performance.now();
+  const dt = (now - gameState.lastTime) / 1000;
+  gameState.lastTime = now;
   gameState.time -= dt;
-  if (gameState.time <= 0) return gameOver("Hết giờ");
   
-  // Update Player
-  gameState.player.lane += (gameState.player.targetLane - gameState.player.lane) * 10 * dt;
-  
-  // Spawn entities
-  gameState.nextSpawn -= dt;
-  if (gameState.nextSpawn <= 0) {
-    const lane = Math.floor(Math.random() * 3);
-    const r = Math.random();
-    let type, icon;
-    if (r < 0.4) { type = "need"; icon = ["📖","🖊️","💊","🥦"][Math.floor(Math.random()*4)]; }
-    else if (r < 0.7) { type = "want"; icon = ["🧋","🎮","👕"][Math.floor(Math.random()*3)]; }
-    else { type = "trap"; icon = ["💸","💣","📉"][Math.floor(Math.random()*3)]; }
-    
-    gameState.entities.push({ lane, y: -50, type, icon });
-    gameState.nextSpawn = 0.8 + Math.random() * 0.5;
-  }
-  
-  // Decision Gate every 15s
-  if (Math.floor(gameState.time) > 0 && Math.floor(gameState.time) % 15 === 0 && gameState.gates < 3 && gameState.gates < (4 - Math.floor(gameState.time)/15)) {
-    let scenario = gameState.scenarios[gameState.gates];
-    gameState.gates++;
-    
-    gameState.active = false;
-    document.getElementById("overlayTitle").textContent = "Cổng Quyết Định";
-    document.getElementById("overlayText").textContent = scenario.q;
-    const actions = document.getElementById("overlayActions");
-    actions.innerHTML = `<button class="ghost" id="btnC1">${scenario.c1.t}</button><button class="primary" id="btnC2">${scenario.c2.t}</button>`;
-    
-    const handleChoice = (choice) => {
-      gameOverlay.hidden = true;
-      if (choice.right) {
-        gameState.score += 20;
-        gameState.floatingTexts.push({ x: gameCanvas.width/2, y: 200, text: choice.msg, color: "#22c55e", age: 0 });
-      } else {
-        gameState.hearts--;
-        gameState.floatingTexts.push({ x: gameCanvas.width/2, y: 200, text: choice.msg, color: "#ef4444", age: 0 });
-      }
-      updateGameHeader();
-      gameState.active = true;
-      gameState.lastTime = performance.now();
-      if (gameState.hearts <= 0) gameOver("Hết tim");
-      else requestAnimationFrame(runnerLoop);
-    };
-    
-    document.getElementById("btnC1").onclick = () => handleChoice(scenario.c1);
-    document.getElementById("btnC2").onclick = () => handleChoice(scenario.c2);
-    
-    gameOverlay.hidden = false;
+  if (gameState.time <= 0) {
+    gameOver("Hết giờ! Bạn chưa mua đủ đồ.");
     return;
   }
   
-  // Update Entities & Collision
-  const laneWidth = gameCanvas.width / 3;
-  for (let i = gameState.entities.length - 1; i >= 0; i--) {
-    let e = gameState.entities[i];
-    e.y += gameState.speed * dt;
-    
-    if (e.y > gameCanvas.height) {
-      gameState.entities.splice(i, 1);
-      continue;
+  updateCartGame(dt);
+  drawCartGame();
+  
+  gameLoopId = requestAnimationFrame(cartLoop);
+}
+
+function updateCartGame(dt) {
+  // Spawn items
+  gameState.nextSpawn -= dt;
+  if (gameState.nextSpawn <= 0) {
+    gameState.nextSpawn = 1.0 + Math.random() * 0.5;
+    const isNeed = Math.random() > 0.5;
+    let itemData;
+    if (isNeed) {
+      const needed = gameState.needs.filter(n => n.collected < n.count);
+      if (needed.length > 0) {
+        itemData = needed[Math.floor(Math.random() * needed.length)];
+      } else {
+        itemData = gameState.needs[0]; // fallback
+      }
+    } else {
+      const wants = [
+        { type: 'Trà sữa', icon: '🧋', price: 60000 },
+        { type: 'Đồ chơi', icon: '🎮', price: 200000 },
+        { type: 'Bánh kẹo', icon: '🍬', price: 30000 }
+      ];
+      itemData = wants[Math.floor(Math.random() * wants.length)];
+      itemData.isWant = true;
     }
     
-    // Collision
-    if (e.y > gameState.player.y - 30 && e.y < gameState.player.y + 30) {
-      if (Math.abs(e.lane - gameState.player.lane) < 0.5) {
-        if (e.type === "need") {
-          gameState.score += 10;
-          gameState.floatingTexts.push({ x: e.lane * laneWidth + laneWidth/2, y: e.y - 40, text: "Đúng nhu cầu! +10", color: "#22c55e", age: 0 });
-        } else if (e.type === "trap") {
-          gameState.hearts--;
-          gameState.floatingTexts.push({ x: e.lane * laneWidth + laneWidth/2, y: e.y - 40, text: "Cạm bẫy! Mất tim", color: "#ef4444", age: 0 });
-          if (gameState.hearts <= 0) return gameOver("Hết tim");
-        } else if (e.type === "want") {
-          gameState.budget -= 50000;
-          gameState.floatingTexts.push({ x: e.lane * laneWidth + laneWidth/2, y: e.y - 40, text: "-50k (Mong muốn)", color: "#f59e0b", age: 0 });
-          if (gameState.budget <= 0) {
-            gameState.hearts--;
-            gameState.floatingTexts.push({ x: gameCanvas.width/2, y: 150, text: "Hết sạch tiền!", color: "#ef4444", age: 0 });
-            gameState.budget = 500000;
-            if (gameState.hearts <= 0) return gameOver("Hết tiền");
+    gameState.items.push({
+      x: 30 + Math.random() * (gameCanvas.width - 60),
+      y: -30,
+      data: itemData
+    });
+  }
+  
+  // Update & collide
+  for (let i = gameState.items.length - 1; i >= 0; i--) {
+    let item = gameState.items[i];
+    item.y += gameState.speed * dt;
+    
+    // Collision with cart
+    const cart = gameState.cart;
+    if (item.y + 15 > gameCanvas.height - cart.height && item.y - 15 < gameCanvas.height) {
+      if (Math.abs(item.x - cart.x) < cart.width / 2 + 15) {
+        // Collided!
+        if (item.data.isWant) {
+          gameState.budget -= item.data.price;
+          gameState.floatingTexts.push({ x: item.x, y: item.y, text: "-" + item.data.price / 1000 + "k", color: "#ef4444", age: 0 });
+        } else {
+          gameState.budget -= item.data.price;
+          const needRef = gameState.needs.find(n => n.type === item.data.type);
+          if (needRef && needRef.collected < needRef.count) {
+            needRef.collected++;
+            gameState.score += 10;
+            updateGameHeader();
           }
+          gameState.floatingTexts.push({ x: item.x, y: item.y, text: "Đã mua " + item.data.type, color: "#22c55e", age: 0 });
         }
-        gameState.entities.splice(i, 1);
-        updateGameHeader();
+        
+        gameState.items.splice(i, 1);
+        
+        // Check win/loss
+        if (gameState.budget < 0) {
+          gameOver("Thủng ví! Bạn đã tiêu lạm vào Ngân sách.");
+          return;
+        }
+        
+        const allNeedsMet = gameState.needs.every(n => n.collected >= n.count);
+        if (allNeedsMet) {
+          gameState.score += 50; // Win bonus
+          gameWin("Tuyệt vời! Bạn đã mua đủ đồ và vẫn giữ được ngân sách.");
+          return;
+        }
+        
+        continue;
       }
     }
-  }
-  
-  // Draw
-  ctx.clearRect(0, 0, gameCanvas.width, gameCanvas.height);
-  
-  // Lanes
-  ctx.strokeStyle = "rgba(255,255,255,0.2)";
-  ctx.lineWidth = 2;
-  ctx.beginPath();
-  ctx.moveTo(laneWidth, 0); ctx.lineTo(laneWidth, gameCanvas.height);
-  ctx.moveTo(laneWidth*2, 0); ctx.lineTo(laneWidth*2, gameCanvas.height);
-  ctx.stroke();
-  
-  // Draw Entities
-  ctx.font = "30px Arial";
-  ctx.textAlign = "center";
-  ctx.textBaseline = "middle";
-  for (let e of gameState.entities) {
-    if (e.type === "trap") {
-      ctx.fillStyle = "rgba(239, 68, 68, 0.2)"; // Red glow
-      ctx.beginPath(); ctx.arc(e.lane * laneWidth + laneWidth/2, e.y, 25, 0, Math.PI*2); ctx.fill();
-    } else if (e.type === "need") {
-      ctx.fillStyle = "rgba(34, 197, 94, 0.2)"; // Green glow
-      ctx.beginPath(); ctx.arc(e.lane * laneWidth + laneWidth/2, e.y, 25, 0, Math.PI*2); ctx.fill();
+    
+    if (item.y > gameCanvas.height + 30) {
+      gameState.items.splice(i, 1);
     }
-    ctx.fillText(e.icon, e.lane * laneWidth + laneWidth/2, e.y);
   }
   
-  // Draw Player
-  ctx.font = "40px Arial";
-  ctx.fillText("🏃", gameState.player.lane * laneWidth + laneWidth/2, gameState.player.y);
+  gameState.floatingTexts.forEach(ft => ft.age += dt);
+  gameState.floatingTexts = gameState.floatingTexts.filter(ft => ft.age < 1);
+}
+
+function drawCartGame() {
+  ctx.clearRect(0, 0, gameCanvas.width, gameCanvas.height);
   
   // Draw Budget
   ctx.fillStyle = "#fff";
-  ctx.font = "bold 20px Arial";
-  ctx.textAlign = "right";
-  ctx.fillText(`Ngân sách: ${gameState.budget.toLocaleString()}đ`, gameCanvas.width - 10, 30);
+  ctx.font = "bold 16px Montserrat";
+  ctx.textAlign = "left";
+  ctx.fillText("Ngân sách: " + (gameState.budget / 1000) + "k", 10, 25);
   
-  // Draw Floating Texts
-  for (let i = gameState.floatingTexts.length - 1; i >= 0; i--) {
-    let ft = gameState.floatingTexts[i];
-    ft.age += dt;
-    if (ft.age > 1.5) {
-      gameState.floatingTexts.splice(i, 1);
-      continue;
-    }
-    ctx.globalAlpha = 1 - (ft.age / 1.5);
+  // Draw Needs list
+  ctx.font = "14px Montserrat";
+  let ly = 50;
+  gameState.needs.forEach(n => {
+    ctx.fillStyle = n.collected >= n.count ? "#888" : "#fff";
+    ctx.fillText(n.icon + " " + n.type + ": " + n.collected + "/" + n.count, 10, ly);
+    ly += 22;
+  });
+  
+  // Draw Cart
+  const cart = gameState.cart;
+  ctx.fillStyle = "#3b82f6";
+  ctx.beginPath();
+  ctx.roundRect(cart.x - cart.width/2, gameCanvas.height - cart.height, cart.width, cart.height, [4, 4, 12, 12]);
+  ctx.fill();
+  
+  // Draw Items
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.font = "24px Arial";
+  gameState.items.forEach(item => {
+    ctx.fillText(item.data.icon, item.x, item.y);
+  });
+  
+  // Draw floating texts
+  gameState.floatingTexts.forEach(ft => {
     ctx.fillStyle = ft.color;
-    ctx.font = "bold 20px Arial";
-    ctx.textAlign = "center";
+    ctx.font = "bold 16px Montserrat";
+    ctx.globalAlpha = 1 - ft.age;
     ctx.fillText(ft.text, ft.x, ft.y - ft.age * 50);
-    ctx.globalAlpha = 1;
-  }
-  
-  gameLoopId = requestAnimationFrame(runnerLoop);
+  });
+  ctx.globalAlpha = 1;
 }
 
 // ----------------------------------------------------
@@ -695,223 +679,149 @@ function showDOMFloatingText(col, row, text, color, offsetY = 0) {
 }
 
 // ----------------------------------------------------
-// GAME 4: MATCH-3 (Xóa bẫy tiêu dùng)
+// GAME 4: DEFENSE (Bảo vệ túi tiền)
 // ----------------------------------------------------
-function startMatch3Game() {
+function startDefenseGame() {
+  gameCanvas.hidden = true;
   domGame.hidden = false;
-  gameState.board = [];
-  gameState.selected = null;
-  gameState.temptation = 0;
   
-  gameState.iconMeanings = {
-    0: { icon: "🔥", desc: "FOMO" },
-    1: { icon: "📢", desc: "Quảng cáo lố" },
-    2: { icon: "👥", desc: "Theo bạn bè" },
-    3: { icon: "🏷️", desc: "Bẫy giảm giá" },
-    4: { icon: "❓", desc: "Hàng trôi nổi" }
-  };
+  gameState.enemies = [];
+  gameState.nextSpawn = 1;
+  gameState.speed = 10; // percent per sec
   
-  gameState.toolMeanings = [
-    { icon: "🔍", desc: "Kính lúp" },
-    { icon: "👛", desc: "Ví tiền" },
-    { icon: "📝", desc: "Danh sách" },
-    { icon: "🛡️", desc: "Khiên" }
+  gameState.enemyTypes = [
+    { type: 'sale', icon: '📢', label: 'Sale ảo', weakness: 'kinhlup' },
+    { type: 'fomo', icon: '🔥', label: 'Sợ lỡ mất', weakness: 'cho24h' },
+    { type: 'peer', icon: '👥', label: 'Bạn bè rủ', weakness: 'kiendinh' },
+    { type: 'impulse', icon: '🛍️', label: 'Thích là mua', weakness: 'danhsach' }
   ];
-
+  
   domGame.innerHTML = `
-    <div style="color:white; text-align:center; padding-bottom: 8px; font-weight: bold;">
-      Chỉ số Cám dỗ tiêu tiền
-      <div style="width:100%; background:#1e293b; height:12px; border-radius:6px; margin-top:4px; position:relative; overflow:hidden;">
-        <div id="temptBar" style="width:0%; height:100%; background:linear-gradient(90deg, #22c55e, #f59e0b, #ef4444); transition: width 0.3s;"></div>
-      </div>
+    <div id="defenseArena" style="position:relative; width:100%; height:300px; overflow:hidden; background:#1e293b; border-radius:12px; margin-bottom:16px;">
+      <div id="walletBase" style="position:absolute; left:50%; top:50%; transform:translate(-50%, -50%); width:60px; height:60px; background:#eab308; border-radius:30px; display:flex; align-items:center; justify-content:center; font-size:32px; z-index:10; box-shadow:0 0 20px rgba(234, 179, 8, 0.4);">💰</div>
     </div>
-    <div class="matchBoard" id="matchBoard" style="position:relative;"></div>
+    <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
+      <button class="primary" id="btn-kinhlup" style="padding:12px 8px; font-size:14px;">🔍 Kính lúp</button>
+      <button class="primary" id="btn-cho24h" style="padding:12px 8px; font-size:14px;">⏱️ Chờ 24h</button>
+      <button class="primary" id="btn-kiendinh" style="padding:12px 8px; font-size:14px;">🛡️ Kiên định</button>
+      <button class="primary" id="btn-danhsach" style="padding:12px 8px; font-size:14px;">📝 Danh sách</button>
+    </div>
     <div id="mFloatContainer" style="position: absolute; inset: 0; pointer-events: none; z-index: 50;"></div>
   `;
   
-  const boardEl = document.getElementById("matchBoard");
-  
-  // Init board
-  for (let r=0; r<6; r++) {
-    gameState.board[r] = [];
-    for (let c=0; c<6; c++) {
-      let type = Math.floor(Math.random() * 5);
-      // Prevent initial match
-      while ((c>=2 && gameState.board[r][c-1].type===type && gameState.board[r][c-2].type===type) ||
-             (r>=2 && gameState.board[r-1][c].type===type && gameState.board[r-2][c].type===type)) {
-        type = Math.floor(Math.random() * 5);
-      }
-      gameState.board[r][c] = { type, r, c };
-      
-      const cell = document.createElement("div");
-      cell.className = "matchCell";
-      cell.dataset.r = r; cell.dataset.c = c;
-      boardEl.appendChild(cell);
-    }
-  }
-  
-  renderMatchBoard();
-  
-  // Simple event loop instead of requestAnimationFrame
-  gameState.matchInterval = setInterval(() => {
+  const handleShield = (type) => {
     if (!gameState.active) return;
-    gameState.temptation += 2; // Increase temptation over time
-    if (gameState.temptation >= 100) {
-      gameState.temptation = 0;
-      gameState.hearts--;
-      updateGameHeader();
-      if (gameState.hearts <= 0) gameOver("Hết tim");
-    }
-    updateTemptBar();
-  }, 1000);
-}
-
-function renderMatchBoard() {
-  const boardEl = document.getElementById("matchBoard");
-  boardEl.innerHTML = ""; // lazy re-render
-  
-  const icons = ["🔥", "📢", "👥", "🏷️", "❓"];
-  
-  for (let r=0; r<6; r++) {
-    for (let c=0; c<6; c++) {
-      const cell = document.createElement("div");
-      cell.className = "matchCell";
-      
-      if (gameState.board[r][c]) {
-        const item = document.createElement("div");
-        item.className = `matchItem type-${gameState.board[r][c].type}`;
-        if (gameState.selected && gameState.selected.r === r && gameState.selected.c === c) {
-          item.style.transform = "scale(1.1)";
-          item.style.zIndex = "10";
-          item.style.boxShadow = "0 0 10px #fff";
-        }
-        item.textContent = gameState.board[r][c].special ? gameState.board[r][c].special : icons[gameState.board[r][c].type];
-        
-        item.onmousedown = () => handleMatchClick(r, c);
-        item.ontouchstart = (e) => { e.preventDefault(); handleMatchClick(r, c); };
-        
-        cell.appendChild(item);
+    
+    // Find closest enemy matching this weakness
+    let target = null;
+    let maxProgress = -1;
+    for (let e of gameState.enemies) {
+      if (e.data.weakness === type && e.progress > maxProgress) {
+        maxProgress = e.progress;
+        target = e;
       }
-      boardEl.appendChild(cell);
     }
-  }
+    
+    if (target) {
+      target.dead = true;
+      gameState.score += 15;
+      updateGameHeader();
+      showDOMFloatingText(target.progress, target.angle, "Chặn thành công!", "#22c55e", -20, true);
+    } else {
+      showDOMFloatingText(50, Math.random()*Math.PI*2, "Hụt!", "#94a3b8", -20, true);
+    }
+    renderDefenseGame();
+  };
+  
+  document.getElementById("btn-kinhlup").onclick = () => handleShield("kinhlup");
+  document.getElementById("btn-cho24h").onclick = () => handleShield("cho24h");
+  document.getElementById("btn-kiendinh").onclick = () => handleShield("kiendinh");
+  document.getElementById("btn-danhsach").onclick = () => handleShield("danhsach");
+  
+  defenseLoop();
 }
 
-function handleMatchClick(r, c) {
-  if (gameState.board[r][c].type === -1) {
-    // Used a tool!
-    gameState.score += 15;
-    gameState.temptation = Math.max(0, gameState.temptation - 30);
-    updateTemptBar();
-    
-    let toolDesc = "Công cụ bảo vệ";
-    for (let tm of gameState.toolMeanings) {
-      if (tm.icon === gameState.board[r][c].special) toolDesc = tm.desc;
-    }
-    showDOMFloatingText(c, r, `Dùng ${toolDesc}!`, "#22c55e", -40);
-    
-    gameState.board[r][c] = { type: Math.floor(Math.random() * 5), r, c }; // reset to random
-    updateGameHeader();
-    renderMatchBoard();
-    if (gameState.score >= 100) setTimeout(() => gameOver("Tuyệt vời"), 1000);
+function defenseLoop() {
+  if (!gameState.active) return;
+  const now = performance.now();
+  const dt = (now - gameState.lastTime) / 1000;
+  gameState.lastTime = now;
+  gameState.time -= dt;
+  
+  if (gameState.time <= 0) {
+    gameWin("Bạn đã bảo vệ túi tiền thành công!");
     return;
   }
   
-  if (!gameState.selected) {
-    gameState.selected = {r, c};
-    renderMatchBoard();
-  } else {
-    // Swap
-    const sr = gameState.selected.r, sc = gameState.selected.c;
-    if ((Math.abs(sr - r) === 1 && sc === c) || (Math.abs(sc - c) === 1 && sr === r)) {
-      // Swap data
-      let tempType = gameState.board[sr][sc].type;
-      let tempSpecial = gameState.board[sr][sc].special;
-      gameState.board[sr][sc].type = gameState.board[r][c].type;
-      gameState.board[sr][sc].special = gameState.board[r][c].special;
-      gameState.board[r][c].type = tempType;
-      gameState.board[r][c].special = tempSpecial;
-      
-      gameState.selected = null;
-      renderMatchBoard();
-      
-      setTimeout(checkMatches, 300);
-    } else {
-      gameState.selected = {r, c};
-      renderMatchBoard();
-    }
-  }
+  updateDefenseGame(dt);
+  renderDefenseGame();
+  
+  gameLoopId = requestAnimationFrame(defenseLoop);
 }
 
-function checkMatches() {
-  let matched = [];
-  
-  // Horizontal
-  for (let r=0; r<6; r++) {
-    for (let c=0; c<4; c++) {
-      let type = gameState.board[r][c].type;
-      if (type === -1) continue; // tools don't match
-      if (gameState.board[r][c+1].type === type && gameState.board[r][c+2].type === type) {
-        matched.push({r, c}, {r, c: c+1}, {r, c: c+2});
-      }
-    }
+function updateDefenseGame(dt) {
+  gameState.nextSpawn -= dt;
+  if (gameState.nextSpawn <= 0) {
+    gameState.nextSpawn = 1.0 + Math.random() * 0.8;
+    const angle = Math.random() * Math.PI * 2;
+    const enemyData = gameState.enemyTypes[Math.floor(Math.random() * gameState.enemyTypes.length)];
+    gameState.enemies.push({
+      angle: angle,
+      progress: 0,
+      data: enemyData,
+      id: Math.random().toString(36).substr(2, 9)
+    });
   }
-  // Vertical
-  for (let c=0; c<6; c++) {
-    for (let r=0; r<4; r++) {
-      let type = gameState.board[r][c].type;
-      if (type === -1) continue;
-      if (gameState.board[r+1][c].type === type && gameState.board[r+2][c].type === type) {
-        matched.push({r, c}, {r: r+1, c}, {r: r+2, c});
+  
+  for (let i = gameState.enemies.length - 1; i >= 0; i--) {
+    let e = gameState.enemies[i];
+    if (e.dead) {
+      gameState.enemies.splice(i, 1);
+      continue;
+    }
+    
+    e.progress += gameState.speed * dt;
+    if (e.progress >= 95) {
+      gameState.hearts--;
+      updateGameHeader();
+      showDOMFloatingText(100, e.angle, "Bị cám dỗ!", "#ef4444", -30, true);
+      gameState.enemies.splice(i, 1);
+      
+      if (gameState.hearts <= 0) {
+        gameOver("Bạn đã tiêu hết tiền vào cám dỗ!");
+        return;
       }
     }
   }
   
-  if (matched.length > 0) {
-    // unique matches
-    let unique = [];
-    matched.forEach(m => {
-      if (!unique.find(u => u.r === m.r && u.c === m.c)) unique.push(m);
-    });
-    
-    gameState.score += unique.length * 2;
-    updateGameHeader();
-    
-    let removedType = gameState.board[unique[0].r][unique[0].c].type;
-    
-    // Clear and drop (simplified for prototype)
-    unique.forEach(m => {
-      gameState.board[m.r][m.c] = null;
-    });
-    
-    if (removedType !== -1 && gameState.iconMeanings[removedType]) {
-      let centerP = unique[Math.floor(unique.length/2)];
-      showDOMFloatingText(centerP.c, centerP.r, `Đã xóa: ${gameState.iconMeanings[removedType].desc}!`, "#fff");
-    }
-    
-    // Create tool if match >= 4 
-    if (unique.length >= 4) {
-      let m = unique[0];
-      const tool = gameState.toolMeanings[Math.floor(Math.random() * gameState.toolMeanings.length)];
-      gameState.board[m.r][m.c] = { type: -1, special: tool.icon, r: m.r, c: m.c };
-      showDOMFloatingText(m.c, m.r, "Tạo " + tool.desc + "!", "#38bdf8");
-    }
-    
-    // Fill empty
-    for (let c=0; c<6; c++) {
-      for (let r=5; r>=0; r--) {
-        if (!gameState.board[r][c]) {
-          gameState.board[r][c] = { type: Math.floor(Math.random() * 5), r, c };
-        }
-      }
-    }
-    
-    renderMatchBoard();
-    setTimeout(checkMatches, 400); // cascade
-  }
+  gameState.speed += dt * 0.2;
 }
 
-// ----------------------------------------------------
-// Init hook
-// ----------------------------------------------------
-setTimeout(initArcade, 100);
+function renderDefenseGame() {
+  const arena = document.getElementById("defenseArena");
+  if (!arena) return;
+  
+  Array.from(arena.children).forEach(child => {
+    if (child.id !== "walletBase") child.remove();
+  });
+  
+  gameState.enemies.forEach(e => {
+    const el = document.createElement("div");
+    el.innerHTML = `<div style="font-size:24px;">${e.data.icon}</div><div style="font-size:10px; color:#fff; background:rgba(0,0,0,0.5); padding:2px 4px; border-radius:4px; white-space:nowrap;">${e.data.label}</div>`;
+    el.style.position = "absolute";
+    
+    const radius = 50 * (1 - e.progress / 100);
+    const x = 50 + radius * Math.cos(e.angle);
+    const y = 50 + radius * Math.sin(e.angle);
+    
+    el.style.left = `${x}%`;
+    el.style.top = `${y}%`;
+    el.style.transform = "translate(-50%, -50%)";
+    el.style.display = "flex";
+    el.style.flexDirection = "column";
+    el.style.alignItems = "center";
+    
+    arena.appendChild(el);
+  });
+}
+
