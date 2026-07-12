@@ -825,3 +825,6 @@ function renderDefenseGame() {
   });
 }
 
+
+// Init hook
+setTimeout(initArcade, 100);
