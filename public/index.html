@@ -9,6 +9,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:ital,wght@0,400;0,600;0,800;0,900&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="static.css">
   <link rel="stylesheet" href="refinements.css">
+  <link rel="stylesheet" href="arcade.css">
 </head>
 <body>
   <header class="lessonHeader">
@@ -34,9 +35,78 @@
       <article><b>01</b><h3>Hiểu đúng</h3><p>Nhận biết tiêu dùng thông minh và lợi ích thiết thực.</p></article><article><b>02</b><h3>Kiểm chứng</h3><p>Nhận diện quảng cáo và kiểm tra trước khi mua.</p></article><article><b>03</b><h3>Ra quyết định</h3><p>Đánh giá hành vi trong tình huống đời sống.</p></article><article><b>04</b><h3>Lập kế hoạch</h3><p>Cân đối nhu cầu, mong muốn và khả năng tài chính.</p></article><article><b>05</b><h3>Hành động</h3><p>Thực hiện tiêu dùng thông minh mỗi ngày.</p></article><article><b>06</b><h3>Lan tỏa</h3><p>Khích lệ người thân và bạn bè cùng thực hiện.</p></article>
     </div><div class="continue"><button class="primary" data-complete="1">Tôi đã hiểu mục tiêu →</button></div></section>
 
-    <section class="panel" data-panel="2"><header class="sectionHead"><span>02 · BÀI HỌC</span><h2>Bộ công cụ của người mua thông minh</h2><p>Kiến thức ngắn gọn, gần với cuộc sống của em.</p></header><div class="lessonGrid">
-      <article><i>?</i><h3>Tiêu dùng thông minh là gì?</h3><p>Biết lựa chọn, mua và sử dụng sản phẩm hợp lí: đúng nhu cầu, vừa tài chính, bảo đảm chất lượng, an toàn và tránh lãng phí.</p></article><article><i>+</i><h3>Lợi ích</h3><p>Tiết kiệm tiền và thời gian, bảo vệ sức khỏe, quyền lợi; hình thành thói quen quản lí tài chính tốt.</p></article><article><i>✓</i><h3>6 bước mua thông minh</h3><p>Xác định nhu cầu → tìm hiểu → so sánh → cân nhắc chi trả → kiểm tra quảng cáo → theo kế hoạch.</p></article><article><i>!</i><h3>Điều cần tránh</h3><p>Mua theo cảm xúc, chạy theo bạn bè, ham khuyến mãi, ham rẻ không rõ nguồn gốc.</p></article>
-    </div><div class="tip"><b>Gợi ý thông minh</b> Trước khi mua, hãy dừng lại 10 giây và hỏi: “Mình cần hay chỉ đang muốn?”</div><div class="continue"><button class="primary" data-complete="2">Tiếp tục đến Quảng cáo →</button></div></section>
+    <section class="panel" data-panel="2" id="arcadeSection">
+      <header class="sectionHead">
+        <span>02 · ARCADE THÔNG MINH</span>
+        <h2>Smart Consumer Arcade</h2>
+        <p>Luyện phản xạ và ghi nhớ kiến thức. Đạt ít nhất 6/12 sao để vượt qua chặng này!</p>
+      </header>
+      
+      <div id="arcadeMenu">
+        <div class="arcadeStatus">
+          <div class="arcadeStars">⭐ Tổng sao: <span id="totalArcadeStars">0</span>/12</div>
+          <div class="arcadeBadges" id="arcadeBadgesDisplay">
+            <!-- Badges will be injected here -->
+          </div>
+        </div>
+        
+        <div class="arcadeGrid">
+          <button class="arcadeBtn" data-game="1">
+            <div class="aIcon">🏃</div>
+            <h3>1. Đường đua lựa chọn</h3>
+            <p>Nhu cầu, mong muốn, khả năng</p>
+            <div class="aStars" id="starsG1">☆☆☆</div>
+          </button>
+          <button class="arcadeBtn" data-game="2">
+            <div class="aIcon">⚔️</div>
+            <h3>2. Mắt thần mua sắm</h3>
+            <p>Kiểm tra thông tin, an toàn</p>
+            <div class="aStars" id="starsG2">☆☆☆</div>
+          </button>
+          <button class="arcadeBtn" data-game="3">
+            <div class="aIcon">🎵</div>
+            <h3>3. Nhịp mua thông minh</h3>
+            <p>Ghi nhớ 6 bước mua sắm</p>
+            <div class="aStars" id="starsG3">☆☆☆</div>
+          </button>
+          <button class="arcadeBtn" data-game="4">
+            <div class="aIcon">🧩</div>
+            <h3>4. Xóa bẫy tiêu dùng</h3>
+            <p>Nhận diện thói quen xấu</p>
+            <div class="aStars" id="starsG4">☆☆☆</div>
+          </button>
+        </div>
+        
+        <div class="arcadeResult" id="arcadeResultView" hidden>
+          <h3>Tổng kết phần Bài học</h3>
+          <div id="arcadeFinalBadges" class="arcadeGrid"></div>
+          <p id="arcadeFinalMessage"></p>
+          <div class="continue"><button class="primary" id="arcadeUnlockBtn" disabled data-complete="2">Chưa đủ 6 sao</button></div>
+        </div>
+      </div>
+
+      <div id="gameViewport" hidden>
+        <div class="gameHeader">
+          <button class="ghost" id="exitGameBtn">← Thoát</button>
+          <div class="gameStats">
+            <span id="gameScoreDisplay">Điểm: 0</span>
+            <span id="gameTimeDisplay">⏱ 60s</span>
+            <span id="gameHeartsDisplay">❤️❤️❤️</span>
+          </div>
+        </div>
+        <div id="gameContainer">
+          <canvas id="gameCanvas" hidden></canvas>
+          <div id="domGame" hidden></div>
+        </div>
+        <div id="gameOverlay" hidden>
+          <div class="overlayContent">
+            <h3 id="overlayTitle"></h3>
+            <p id="overlayText"></p>
+            <div id="overlayActions"></div>
+          </div>
+        </div>
+      </div>
+    </section>
 
     <section class="panel" data-panel="3"><header class="sectionHead"><span>03 · QUẢNG CÁO</span><h2>Đừng mua chỉ vì thấy hấp dẫn!</h2><p>Phát hiện tín hiệu gây vội vàng và chọn cách kiểm chứng.</p></header><div id="adActivity" class="activity"></div><div class="checklist"><b>5 điều cần kiểm tra</b><span>① Mình thật sự cần?</span><span>② Nguồn gốc rõ ràng?</span><span>③ Giá cả hợp lí?</span><span>④ Có đổi trả?</span><span>⑤ Vừa khả năng chi trả?</span></div></section>
 
@@ -69,5 +139,6 @@
   <footer><b>SMART CONSUMER · GDCD 9</b><span>Học để lựa chọn tốt hơn — mỗi ngày.</span></footer>
   <div id="modalRoot" aria-live="polite"></div>
   <script src="static.js"></script>
+  <script src="arcade.js"></script>
 </body>
 </html>

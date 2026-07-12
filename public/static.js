@@ -31,7 +31,7 @@ const situationBank = [
 const days = ["Thứ 2", "Thứ 3", "Thứ 4", "Thứ 5", "Thứ 6", "Thứ 7", "Chủ nhật"];
 const blankExpense = () => ({ item: "", amount: "", kind: "Nhu cầu", note: "" });
 const defaultJournal = () => days.map(() => [blankExpense()]);
-const createDefaultState = () => ({ active: 0, completed: [], adSet: [], adPosition: 0, adResponses: {}, sitSet: [], sitPosition: 0, sitResponses: {}, journal: defaultJournal() });
+const createDefaultState = () => ({ active: 0, completed: [], arcade: {}, adSet: [], adPosition: 0, adResponses: {}, sitSet: [], sitPosition: 0, sitResponses: {}, journal: defaultJournal() });
 
 let state = createDefaultState();
 try {
