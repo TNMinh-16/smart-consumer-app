@@ -89,7 +89,6 @@ function startGame(gameId) {
   document.getElementById("gameIntroOverlay").hidden = false;
   
   // Resize canvas
-  const gameViewport = document.getElementById("gameViewport");
   gameCanvas.width = gameViewport.clientWidth || 300;
   gameCanvas.height = gameViewport.clientHeight || 500;
   
