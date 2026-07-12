@@ -274,19 +274,36 @@ function updateAccountBar() {
   const authButton = $("#authButton");
   const teacherButton = $("#teacherButton");
   const logoutButton = $("#logoutButton");
+  
   if (!currentUser) {
     status.textContent = "Chưa đăng nhập";
     status.title = "Hãy đăng nhập để lưu bài làm theo tài khoản.";
     authButton.hidden = false;
     teacherButton.hidden = true;
     logoutButton.hidden = true;
+    $("main").hidden = false;
+    $("#nav").hidden = false;
+    if ($("#teacherDashboard")) $("#teacherDashboard").hidden = true;
     return;
   }
+  
   status.textContent = `${roleLabel(currentUser.role)}: ${currentUser.displayName}`;
   status.title = "Bài làm được lưu riêng cho tài khoản này.";
   authButton.hidden = true;
-  teacherButton.hidden = currentUser.role !== "teacher";
   logoutButton.hidden = false;
+  
+  if (currentUser.role === "teacher") {
+    teacherButton.hidden = true;
+    $("main").hidden = true;
+    $("#nav").hidden = true;
+    if ($("#teacherDashboard")) $("#teacherDashboard").hidden = false;
+    openTeacherDashboard();
+  } else {
+    teacherButton.hidden = true;
+    $("main").hidden = false;
+    $("#nav").hidden = false;
+    if ($("#teacherDashboard")) $("#teacherDashboard").hidden = true;
+  }
 }
 
 function closeModal() {
@@ -318,11 +335,11 @@ function renderAuthModal(mode, teacherExists, error = "") {
   const title = isLogin ? "Đăng nhập" : isTeacher ? "Thiết lập giáo viên" : "Tạo tài khoản";
   const fields = isLogin
     ? `<label>Tên đăng nhập<input name="username" autocomplete="username" required></label><label>Mật khẩu<input name="password" type="password" autocomplete="current-password" required></label>`
-    : `<label>Họ và tên / tên hiển thị<input name="displayName" autocomplete="name" required maxlength="80"></label><label>Tên đăng nhập<input name="username" autocomplete="username" required pattern="[a-zA-Z0-9._-]{3,40}"></label>${isTeacher ? "" : `<label>Loại tài khoản<select name="role"><option value="student">Học sinh</option><option value="guest">Khách</option></select></label>`}<label>Mật khẩu<input name="password" type="password" autocomplete="new-password" required minlength="8"></label>`;
+    : `<label>Họ và tên / tên hiển thị<input name="displayName" autocomplete="name" required maxlength="80"></label><label>Tên đăng nhập<input name="username" autocomplete="username" required pattern="[a-zA-Z0-9._-]{3,40}"></label>${isTeacher ? "" : `<input type="hidden" name="role" value="student">`}<label>Mật khẩu<input name="password" type="password" autocomplete="new-password" required minlength="8"></label>`;
   const setupNote = !teacherExists && !isTeacher
     ? `<div class="teacherSetup">Chưa có tài khoản giáo viên cho lớp này.<br><button type="button" data-open-teacher>Thiết lập giáo viên đầu tiên</button></div>`
     : "";
-  showModal(title, "TÀI KHOẢN HỌC TẬP", `<div class="authTabs"><button type="button" class="${isLogin ? "active" : ""}" data-auth-mode="login">Đăng nhập</button><button type="button" class="${!isLogin && !isTeacher ? "active" : ""}" data-auth-mode="register">Tạo tài khoản</button></div><form class="authForm" id="authForm">${fields}<p class="authHint">${isTeacher ? "Tài khoản giáo viên có thể xem bài làm của học sinh, không xem được tài khoản khách." : "Tài khoản học sinh và khách chỉ xem được bài làm của chính mình."}</p><p class="authError" id="authError">${escapeHtml(error)}</p><button class="primary" type="submit">${isLogin ? "Đăng nhập" : isTeacher ? "Tạo tài khoản giáo viên" : "Tạo tài khoản"}</button></form>${setupNote}`);
+  showModal(title, "TÀI KHOẢN HỌC TẬP", `<div class="authTabs"><button type="button" class="${isLogin ? "active" : ""}" data-auth-mode="login">Đăng nhập</button><button type="button" class="${!isLogin && !isTeacher ? "active" : ""}" data-auth-mode="register">Tạo tài khoản</button></div><form class="authForm" id="authForm">${fields}<p class="authHint">${isTeacher ? "Tài khoản giáo viên có thể xem bài làm của học sinh." : "Tài khoản học sinh chỉ xem được bài làm của chính mình."}</p><p class="authError" id="authError">${escapeHtml(error)}</p><button class="primary" type="submit">${isLogin ? "Đăng nhập" : isTeacher ? "Tạo tài khoản giáo viên" : "Tạo tài khoản"}</button></form>${setupNote}`);
   document.querySelectorAll("[data-auth-mode]").forEach(button => button.addEventListener("click", () => renderAuthModal(button.dataset.authMode, teacherExists)));
   const teacherButton = $("[data-open-teacher]");
   if (teacherButton) teacherButton.addEventListener("click", () => renderAuthModal("teacher", teacherExists));
@@ -382,35 +399,102 @@ function formatUpdatedAt(value) {
 
 async function openTeacherDashboard() {
   if (currentUser?.role !== "teacher") return;
-  showModal("Bài làm của học sinh", "KHU VỰC GIÁO VIÊN", `<p class="loadingState">Đang tải danh sách học sinh...</p>`);
+  const listRoot = $("#teacherStudentList");
+  listRoot.innerHTML = `<p class="loadingState">Đang tải danh sách học sinh...</p>`;
+  $("#teacherStudentDetail").innerHTML = `<div class="emptyState"><div class="contextIcon">👤</div><p>Chọn một học sinh ở danh sách bên trái<br>để xem chi tiết bài làm.</p></div>`;
   try {
     const data = await api("/api/teacher/students");
-    const content = data.students.length
-      ? `<p class="authHint">Chỉ hiển thị tài khoản học sinh. Tài khoản khách được bảo mật và không xuất hiện ở đây.</p><div class="studentList">${data.students.map(student => `<button class="studentRow" type="button" data-student-id="${student.id}"><div><b>${escapeHtml(student.displayName)}</b><span>@${escapeHtml(student.username)} · ${formatUpdatedAt(student.updatedAt)}</span></div><em>${student.responseCount} câu trả lời · ${student.expenseCount} khoản chi</em></button>`).join("")}</div>`
-      : `<p class="emptyState">Chưa có tài khoản học sinh nào trong hệ thống.</p>`;
-    showModal("Bài làm của học sinh", "KHU VỰC GIÁO VIÊN", content);
-    document.querySelectorAll("[data-student-id]").forEach(button => button.addEventListener("click", () => openStudentWork(button.dataset.studentId)));
+    
+    const renderList = (searchTerm = "") => {
+      const term = searchTerm.toLowerCase();
+      const filtered = data.students.filter(s => 
+        s.displayName.toLowerCase().includes(term) || s.username.toLowerCase().includes(term)
+      );
+      
+      if (!filtered.length) {
+        listRoot.innerHTML = `<p class="emptyState">Không tìm thấy học sinh.</p>`;
+        return;
+      }
+      
+      listRoot.innerHTML = `<p class="authHint">Danh sách học sinh (${filtered.length})</p>
+      <div class="studentListItems">
+        ${filtered.map(student => {
+          const avatar = escapeHtml(student.displayName.charAt(0).toUpperCase());
+          return `<button class="studentRow" type="button" data-student-id="${student.id}">
+            <div class="studentAvatar">${avatar}</div>
+            <div class="studentInfo">
+              <b>${escapeHtml(student.displayName)}</b>
+              <span>@${escapeHtml(student.username)} · ${formatUpdatedAt(student.updatedAt)}</span>
+            </div>
+            <div class="studentBadges">
+              <span class="badge blue">${student.responseCount} CH</span>
+              <span class="badge orange">${student.expenseCount} GD</span>
+            </div>
+          </button>`;
+        }).join("")}
+      </div>`;
+      
+      listRoot.querySelectorAll("[data-student-id]").forEach(button => button.addEventListener("click", (e) => {
+        listRoot.querySelectorAll(".studentRow").forEach(btn => btn.classList.remove("active"));
+        e.currentTarget.classList.add("active");
+        openStudentWork(e.currentTarget.dataset.studentId);
+      }));
+    };
+    
+    renderList();
+    
+    const searchInput = $("#teacherSearchInput");
+    if (searchInput) {
+      searchInput.value = "";
+      searchInput.oninput = (e) => renderList(e.target.value);
+    }
   } catch (error) {
-    showModal("Không thể tải bài làm", "KHU VỰC GIÁO VIÊN", `<p class="emptyState">${escapeHtml(error.message)}</p>`);
+    listRoot.innerHTML = `<p class="emptyState authError">${escapeHtml(error.message)}</p>`;
   }
 }
 
-function answerList(title, answers) {
+function answerList(title, answers, bank) {
   const entries = Object.entries(answers || {});
-  return `<section><h4>${title}</h4>${entries.length ? `<ol class="answerList">${entries.map(([index, answer]) => `<li><b>Câu ${Number(index) + 1}</b>${escapeHtml(answer)}</li>`).join("")}</ol>` : `<p class="authHint">Học sinh chưa trả lời phần này.</p>`}</section>`;
+  return `<section class="qaSection"><h4>${title}</h4>${entries.length ? `<div class="qaGrid">${entries.map(([index, answer]) => {
+    const qIndex = Number(index);
+    const questionText = bank && bank[qIndex] ? bank[qIndex].q : `Câu ${qIndex + 1}`;
+    return `<div class="qaCard">
+      <div class="qaQuestion"><b>Q:</b> ${escapeHtml(questionText)}</div>
+      <div class="qaAnswer"><b>A:</b> ${escapeHtml(answer)}</div>
+    </div>`;
+  }).join("")}</div>` : `<p class="authHint">Học sinh chưa trả lời phần này.</p>`}</section>`;
 }
 
 async function openStudentWork(studentId) {
-  showModal("Bài làm học sinh", "KHU VỰC GIÁO VIÊN", `<p class="loadingState">Đang mở bài làm...</p>`);
+  const detailRoot = $("#teacherStudentDetail");
+  detailRoot.innerHTML = `<p class="loadingState">Đang mở bài làm...</p>`;
   try {
     const data = await api(`/api/teacher/students/${studentId}`);
-    const journalRows = (data.state?.journal || []).flatMap((entries, dayIndex) => entries.filter(entry => entry.item || Number(entry.amount) || entry.note).map(entry => `<tr><td>Ngày ${dayIndex + 1}</td><td>${escapeHtml(entry.item || "—")}</td><td>${money(entry.amount)}</td><td>${escapeHtml(entry.kind)}</td><td>${escapeHtml(entry.note || "—")}</td></tr>`));
-    const content = data.state
-      ? `<div class="studentDetail"><div><h3>${escapeHtml(data.student.displayName)}</h3><p class="authHint">@${escapeHtml(data.student.username)} · Hoàn thành ${data.state.completed.length}/6 chặng</p></div>${answerList("Phần Quảng cáo", data.state.adResponses)}${answerList("Phần Tình huống", data.state.sitResponses)}<section><h4>Nhật ký 7 ngày</h4>${journalRows.length ? `<table class="journalPreview"><thead><tr><th>NGÀY</th><th>KHOẢN CHI</th><th>SỐ TIỀN</th><th>LOẠI</th><th>GHI CHÚ</th></tr></thead><tbody>${journalRows.join("")}</tbody></table>` : `<p class="authHint">Học sinh chưa ghi khoản chi nào.</p>`}</section></div>`
-      : `<p class="emptyState">Học sinh này chưa lưu bài làm.</p>`;
-    showModal("Bài làm học sinh", "KHU VỰC GIÁO VIÊN", content);
+    const journalRows = (data.state?.journal || []).flatMap((entries, dayIndex) => entries.filter(entry => entry.item || Number(entry.amount) || entry.note).map(entry => `<tr><td>Ngày ${dayIndex + 1}</td><td>${escapeHtml(entry.item || "—")}</td><td class="moneyText">${money(entry.amount)}</td><td><span class="statusTag ${entry.kind === 'Nhu cầu' ? 'need' : 'want'}">${escapeHtml(entry.kind)}</span></td><td>${escapeHtml(entry.note || "—")}</td></tr>`));
+    const avatar = escapeHtml(data.student.displayName.charAt(0).toUpperCase());
+    
+    detailRoot.innerHTML = data.state
+      ? `<div class="studentDetailHeader">
+           <div class="headerProfile">
+             <div class="headerAvatar">${avatar}</div>
+             <div>
+               <h3>${escapeHtml(data.student.displayName)}</h3>
+               <p class="authHint">@${escapeHtml(data.student.username)} · Đã hoàn thành <b>${data.state.completed.length}/6</b> chặng</p>
+             </div>
+           </div>
+           <button class="ghost" onclick="print()">In bài làm</button>
+         </div>
+         <div class="teacherDetailScroll">
+           ${answerList("Phần Quảng cáo", data.state.adResponses, adBank)}
+           ${answerList("Phần Tình huống", data.state.sitResponses, situationBank)}
+           <section class="journalSection">
+             <h4>Nhật ký 7 ngày</h4>
+             ${journalRows.length ? `<table class="journalPreview"><thead><tr><th>NGÀY</th><th>KHOẢN CHI</th><th style="text-align:right">SỐ TIỀN</th><th>LOẠI</th><th>GHI CHÚ</th></tr></thead><tbody>${journalRows.join("")}</tbody></table>` : `<p class="authHint">Học sinh chưa ghi khoản chi nào.</p>`}
+           </section>
+         </div>`
+      : `<div class="emptyState"><div class="contextIcon">📄</div><p>Học sinh này chưa lưu bài làm trên hệ thống.</p></div>`;
   } catch (error) {
-    showModal("Không thể mở bài làm", "KHU VỰC GIÁO VIÊN", `<p class="emptyState">${escapeHtml(error.message)}</p>`);
+    detailRoot.innerHTML = `<div class="emptyState authError"><p>${escapeHtml(error.message)}</p></div>`;
   }
 }
 
@@ -428,7 +512,8 @@ $("#downloadJournal").addEventListener("click", () => {
 
 $("#authButton").addEventListener("click", () => openAuthModal());
 $("#logoutButton").addEventListener("click", logout);
-$("#teacherButton").addEventListener("click", openTeacherDashboard);
+if ($("#teacherButton")) $("#teacherButton").addEventListener("click", openTeacherDashboard);
+if ($("#refreshTeacherBtn")) $("#refreshTeacherBtn").addEventListener("click", openTeacherDashboard);
 
 setupNav();
 renderJournal();

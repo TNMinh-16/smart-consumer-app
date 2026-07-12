@@ -1,0 +1,16 @@
+{
+  "name": "smart-consumer-gdcd-9",
+  "version": "1.0.0",
+  "description": "Smart Consumer interactive learning",
+  "main": "server.mjs",
+  "type": "module",
+  "scripts": {
+    "start": "node server.mjs"
+  },
+  "engines": {
+    "node": ">=22.5.0"
+  },
+  "dependencies": {
+    "pg": "^8.11.5"
+  }
+}

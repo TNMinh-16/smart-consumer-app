@@ -43,6 +43,28 @@
 
     <section class="panel" data-panel="5"><header class="sectionHead"><span>05 · VẬN DỤNG</span><h2>Thử thách 7 ngày tiêu dùng thông minh</h2><p>Mỗi ngày em có thể ghi nhiều khoản chi, kể cả nhu cầu và mong muốn.</p></header><div class="journalSummary"><div><span>TỔNG CHI TRONG TUẦN</span><b id="weekTotal">0đ</b></div><div><span>KHOẢN NHU CẦU</span><b id="needCount">0</b></div><div><span>KHOẢN MONG MUỐN</span><b id="wantCount">0</b></div></div><p class="tableHint">Trên điện thoại, hãy kéo ngang bảng để xem đủ các cột.</p><div class="journalTableWrap"><table class="journalTable"><thead><tr><th>NGÀY</th><th>KHOẢN CHI</th><th>SỐ TIỀN</th><th>PHÂN LOẠI</th><th>EM CÓ HÀI LÒNG? VÌ SAO?</th><th></th></tr></thead><tbody id="journalRows"></tbody></table></div><div class="challenge"><blockquote>“Đừng mua vì quảng cáo hấp dẫn,<br>hãy mua vì em thật sự cần.”</blockquote><div class="actions"><button class="ghost" id="clearJournal">Làm lại</button><button class="ghost" onclick="print()">In bài</button><button class="primary" id="downloadJournal">Lưu & tải xuống</button></div></div></section>
   </main>
+  <section id="teacherDashboard" class="teacherDashboard" hidden>
+    <aside class="teacherSidebar">
+      <header>
+        <h2>Quản lý lớp học</h2>
+        <button class="ghost" id="refreshTeacherBtn" type="button" aria-label="Làm mới">Làm mới ↻</button>
+      </header>
+      <div class="teacherSearch">
+        <input type="text" id="teacherSearchInput" placeholder="Tìm học sinh (tên, @username)...">
+      </div>
+      <div id="teacherStudentList" class="studentList">
+        <p class="authHint">Đang tải danh sách học sinh...</p>
+      </div>
+    </aside>
+    <div class="teacherContent">
+      <div id="teacherStudentDetail" class="studentDetailArea">
+        <div class="emptyState">
+          <div class="contextIcon">👤</div>
+          <p>Chọn một học sinh ở danh sách bên trái<br>để xem chi tiết bài làm.</p>
+        </div>
+      </div>
+    </div>
+  </section>
   <footer><b>SMART CONSUMER · GDCD 9</b><span>Học để lựa chọn tốt hơn — mỗi ngày.</span></footer>
   <div id="modalRoot" aria-live="polite"></div>
   <script src="static.js"></script>
