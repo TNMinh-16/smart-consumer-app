@@ -11,6 +11,9 @@ const headers = {
 const worker = {
   async fetch(request: Request): Promise<Response> {
     const path = new URL(request.url).pathname;
+    if (path === "/health") {
+      return new Response("ok", { headers: { "content-type": "text/plain; charset=utf-8" } });
+    }
     if (path === "/static.css") {
       return new Response(staticCss, { headers: { ...headers, "content-type": "text/css; charset=utf-8" } });
     }
