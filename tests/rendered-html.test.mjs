@@ -27,13 +27,17 @@ test("contains the six-stage mobile learning journey", async () => {
     readFile(new URL("../worker/index.ts", import.meta.url), "utf8"),
   ]);
   for (let i = 0; i < 6; i++) assert.match(html, new RegExp(`data-panel="${i}"`));
-  assert.doesNotMatch(html, /class="topbar"/);
+  assert.match(html, /class="lessonHeader"/);
   assert.doesNotMatch(html, /KẾ HOẠCH CHI TIÊU|quizActivity/i);
   assert.equal((html.match(/data-complete="0"/g) ?? []).length, 1);
   assert.match(js, /localStorage/);
   assert.match(js, /nhat-ki-7-ngay\.txt/);
   assert.match(js, /state\.journal\[Number\(button\.dataset\.add\)\]\.push/);
-  assert.match(js, /root\.querySelector\("\[data-next\]"\)/);
+  assert.match(js, /const QUESTION_COUNT = 5/);
+  assert.match(js, /const adBank = \[/);
+  assert.match(js, /const situationBank = \[/);
+  assert.match(js, /root\.querySelector\("\[data-continue\]"\)/);
+  assert.match(html, /class="journalTable"/);
   assert.match(css, /@media\(max-width:560px\)/);
   assert.match(css, /touch-action:manipulation/);
   assert.match(css, /expenseRow/);
