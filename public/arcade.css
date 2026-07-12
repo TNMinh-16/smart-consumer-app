@@ -207,88 +207,147 @@
   border: 1px solid var(--line);
 }
 
-/* GAME 3: Rhythm */
-.rhythmGrid {
-  display: flex;
-  width: 100%;
-  height: 100%;
-  background: #1e293b;
-}
-
-.rhythmCol {
-  flex: 1;
-  border-right: 1px solid rgba(255,255,255,0.1);
-  position: relative;
-}
-
-.rhythmCol:last-child {
-  border-right: none;
-}
-
-.rhythmTile {
+/* INTRO OVERLAY */
+#gameIntroOverlay {
   position: absolute;
-  width: 100%;
-  height: 100px;
-  background: #38bdf8;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.95);
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #fff;
-  font-weight: 600;
-  font-size: 12px;
+  z-index: 30;
+  padding: 24px;
+}
+
+.introContent {
+  background: #fff;
+  padding: 32px;
+  border-radius: 24px;
+  width: 100%;
+  max-width: 400px;
   text-align: center;
-  padding: 8px;
-  box-sizing: border-box;
-  cursor: pointer;
-  border-radius: 8px;
-  transform: translateY(-100%); /* Start above */
-  transition: transform linear;
-  box-shadow: inset 0 -4px 0 rgba(0,0,0,0.2);
-  user-select: none;
+  box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
 }
 
-.rhythmTile.trap {
-  background: #f43f5e;
+#introTitle {
+  margin: 0;
+  font-size: 24px;
+  color: var(--ink);
+  font-weight: 800;
 }
 
-.rhythmTile.clicked {
-  opacity: 0.5;
-  pointer-events: none;
+.introVisual {
+  display: flex;
+  justify-content: center;
+  gap: 16px;
+  font-size: 48px;
+  padding: 20px 0;
+  background: #f8fafc;
+  border-radius: 16px;
 }
 
-.rhythmTile.missed {
-  background: #94a3b8;
+.introRules {
+  text-align: left;
+  font-size: 15px;
+  color: var(--muted);
+  line-height: 1.6;
+  background: #f1f5f9;
+  padding: 16px;
+  border-radius: 12px;
 }
 
+.introRules ul {
+  margin: 8px 0 0;
+  padding-left: 20px;
+}
+
+.introRules li {
+  margin-bottom: 8px;
+}
+
+/* GAME 3: Rhythm Optimization */
 .rhythmTarget {
   position: absolute;
   bottom: 20px;
   left: 0;
   width: 100%;
-  height: 100px;
-  border-top: 2px dashed rgba(255,255,255,0.5);
-  border-bottom: 2px dashed rgba(255,255,255,0.5);
+  height: 80px;
+  display: flex;
+  border-top: 4px solid #fff;
+  background: linear-gradient(to bottom, rgba(255,255,255,0.1), transparent);
   pointer-events: none;
 }
 
-/* GAME 4: Match 3 */
+.rhythmTargetCol {
+  flex: 1;
+  border-right: 1px dashed rgba(255,255,255,0.3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.rhythmTargetCol:last-child { border-right: none; }
+.rhythmTargetKey {
+  width: 80%;
+  height: 20px;
+  background: rgba(255,255,255,0.2);
+  border-radius: 10px;
+  margin-top: 40px;
+}
+
+.rhythmTile {
+  position: absolute;
+  width: 90%;
+  left: 5%;
+  height: 80px;
+  background: linear-gradient(135deg, #38bdf8, #0ea5e9);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-weight: 700;
+  font-size: 13px;
+  text-align: center;
+  padding: 8px;
+  box-sizing: border-box;
+  cursor: pointer;
+  border-radius: 12px;
+  transform: translateY(-100%);
+  transition: transform linear;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.3), inset 0 -4px 0 rgba(0,0,0,0.2);
+  user-select: none;
+}
+
+.rhythmTile.trap {
+  background: linear-gradient(135deg, #f43f5e, #e11d48);
+}
+
+.rhythmTile:active {
+  transform: scale(0.95);
+}
+
+/* GAME 4: Match 3 Optimization */
 .matchBoard {
   width: 100%;
   aspect-ratio: 1;
-  background: #334155;
+  background: #1e293b;
   display: grid;
   grid-template-columns: repeat(6, 1fr);
   grid-template-rows: repeat(6, 1fr);
-  gap: 2px;
-  padding: 4px;
+  gap: 4px;
+  padding: 8px;
   box-sizing: border-box;
   margin-top: auto;
+  border-radius: 12px 12px 0 0;
 }
 
 .matchCell {
-  background: #1e293b;
-  border-radius: 8px;
+  background: #334155;
+  border-radius: 12px;
   position: relative;
+  box-shadow: inset 0 2px 4px rgba(0,0,0,0.2);
 }
 
 .matchItem {
@@ -302,13 +361,15 @@
   user-select: none;
   transition: transform 0.2s, top 0.3s, left 0.3s;
   z-index: 2;
-  border-radius: 8px;
+  border-radius: 10px;
+  box-shadow: 0 4px 8px rgba(0,0,0,0.2), inset 0 -2px 0 rgba(0,0,0,0.1);
 }
 
 .matchItem:active {
   cursor: grabbing;
   z-index: 10;
-  transform: scale(1.1);
+  transform: scale(1.15);
+  box-shadow: 0 10px 20px rgba(0,0,0,0.4);
 }
 
 .matchItem.type-0 { background: #fecdd3; } /* Lửa */
