@@ -147,11 +147,24 @@ function renderOpenActivity(type) {
   const context = isAd
     ? `<aside class="activityContext adCreative"><span class="contextLabel">QUẢNG CÁO GIẢ LẬP</span><div class="contextIcon">!</div><h3>${question.title}</h3><p>${question.copy}</p><div class="fakeCta">ƯU ĐÃI CÓ HẠN</div><div class="contextFoot">⚠ Hãy dừng lại và kiểm tra trước khi quyết định mua.</div></aside>`
     : `<aside class="activityContext situationCreative"><span class="contextLabel">TÌNH HUỐNG THỰC TẾ</span><div class="contextIcon">?</div><h3>${question.title}</h3><p>${question.copy}</p><div class="thinkingPrompt">💭 Nếu là nhân vật trong tình huống này, em sẽ làm gì?</div></aside>`;
-  root.innerHTML = `<div class="openActivity ${modeClass}">${context}<div class="openQuestion"><div class="responseTop"><div><span class="taskLabel">NHIỆM VỤ CỦA EM</span><h3>${question.q}</h3></div><div class="progressDots" aria-label="Tiến độ câu hỏi">${Array.from({ length: QUESTION_COUNT }, (_, index) => `<i class="${index < position ? "done" : index === position ? "current" : ""}"></i>`).join("")}</div></div><div class="hintBox"><b>Gợi ý</b><span>${question.hint}</span></div><label class="responseLabel">Trả lời của em<textarea id="openResponse" placeholder="Viết suy nghĩ và cách xử lí của em ở đây...">${escapeHtml(response)}</textarea><span id="responseCount">${response.trim().length} ký tự</span></label><div class="openActions"><button class="ghost" id="previousOpen" ${position === 0 ? "disabled" : ""}>← Câu trước</button><button class="primary" id="saveOpenAnswer" ${response.trim().length < MIN_RESPONSE_LENGTH ? "disabled" : ""}>${position === QUESTION_COUNT - 1 ? "Lưu câu trả lời" : "Lưu & câu tiếp theo →"}</button></div></div></div>`;
+  root.innerHTML = `<div class="openActivity ${modeClass}">${context}<div class="openQuestion"><div class="responseTop"><div><span class="taskLabel">NHIỆM VỤ CỦA EM</span><h3>${question.q}</h3></div><div class="progressDots" aria-label="Tiến độ câu hỏi">${Array.from({ length: QUESTION_COUNT }, (_, index) => `<i class="${index < position ? "done" : index === position ? "current" : ""}"></i>`).join("")}</div></div><div class="hintWrap" style="margin: 16px 0;"><button class="ghost hintToggleBtn" type="button" style="min-height:36px; padding: 6px 12px; font-size: 12px; border-radius: 8px;">💡 Cần gợi ý?</button><div class="hintBox" hidden style="margin-top: 10px;"><b>Gợi ý</b><span>${question.hint}</span></div></div><label class="responseLabel">Trả lời của em<textarea id="openResponse" placeholder="Viết suy nghĩ và cách xử lí của em ở đây...">${escapeHtml(response)}</textarea><span id="responseCount">${response.trim().length} ký tự</span></label><div class="openActions"><button class="ghost" id="previousOpen" ${position === 0 ? "disabled" : ""}>← Câu trước</button><button class="primary" id="saveOpenAnswer" ${response.trim().length < MIN_RESPONSE_LENGTH ? "disabled" : ""}>${position === QUESTION_COUNT - 1 ? "Lưu câu trả lời" : "Lưu & câu tiếp theo →"}</button></div></div></div>`;
   const textarea = root.querySelector("#openResponse");
   const saveButton = root.querySelector("#saveOpenAnswer");
   const previousButton = root.querySelector("#previousOpen");
   const responseCount = root.querySelector("#responseCount");
+  const hintToggleBtn = root.querySelector(".hintToggleBtn");
+  const hintBox = root.querySelector(".hintBox");
+  
+  if (hintToggleBtn) {
+    hintToggleBtn.addEventListener("click", () => {
+      const isHidden = hintBox.hidden;
+      hintBox.hidden = !isHidden;
+      hintToggleBtn.textContent = isHidden ? "Ẩn gợi ý" : "💡 Cần gợi ý?";
+      if (isHidden) hintToggleBtn.classList.add("active");
+      else hintToggleBtn.classList.remove("active");
+    });
+  }
+  
   textarea.addEventListener("input", () => {
     const count = textarea.value.trim().length;
     responseCount.textContent = `${count} ký tự${count < MIN_RESPONSE_LENGTH ? ` · cần ít nhất ${MIN_RESPONSE_LENGTH}` : ""}`;
