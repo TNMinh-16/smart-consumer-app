@@ -31,8 +31,9 @@ const situationBank = [
 const days = ["Thứ 2", "Thứ 3", "Thứ 4", "Thứ 5", "Thứ 6", "Thứ 7", "Chủ nhật"];
 const blankExpense = () => ({ item: "", amount: "", kind: "Nhu cầu", note: "" });
 const defaultJournal = () => days.map(() => [blankExpense()]);
+const createDefaultState = () => ({ active: 0, completed: [], adSet: [], adPosition: 0, adResponses: {}, sitSet: [], sitPosition: 0, sitResponses: {}, journal: defaultJournal() });
 
-let state = { active: 0, completed: [], adSet: [], adPosition: 0, adResponses: {}, sitSet: [], sitPosition: 0, sitResponses: {}, journal: defaultJournal() };
+let state = createDefaultState();
 try {
   const saved = JSON.parse(localStorage.getItem("smart-consumer-static") || "{}");
   state = { ...state, ...saved };
@@ -48,8 +49,14 @@ try {
 const $ = selector => document.querySelector(selector);
 const money = value => `${(Number(value) || 0).toLocaleString("vi-VN")}đ`;
 const escapeHtml = value => String(value ?? "").replace(/[&<>"]/g, char => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[char]));
+let currentUser = null;
+let syncTimer = null;
+let syncGeneration = 0;
 
-function save() { localStorage.setItem("smart-consumer-static", JSON.stringify(state)); }
+function save() {
+  localStorage.setItem("smart-consumer-static", JSON.stringify(state));
+  scheduleSync();
+}
 
 function randomSet(bank) {
   return bank.map((_, index) => index).sort(() => Math.random() - .5).slice(0, QUESTION_COUNT);
@@ -209,6 +216,204 @@ function download(name, text) {
   URL.revokeObjectURL(url);
 }
 
+function prepareState(raw) {
+  const next = { ...createDefaultState(), ...(raw && typeof raw === "object" ? raw : {}) };
+  next.active = Math.min(Math.max(Number(next.active) || 0, 0), 5);
+  next.completed = Array.isArray(next.completed) ? [...new Set(next.completed.map(Number).filter(index => index >= 0 && index <= 5))] : [];
+  next.adSet = Array.isArray(next.adSet) ? next.adSet : [];
+  next.sitSet = Array.isArray(next.sitSet) ? next.sitSet : [];
+  next.adResponses = next.adResponses && typeof next.adResponses === "object" ? next.adResponses : {};
+  next.sitResponses = next.sitResponses && typeof next.sitResponses === "object" ? next.sitResponses : {};
+  next.journal = Array.isArray(next.journal) && next.journal.length === days.length ? next.journal : defaultJournal();
+  next.journal = next.journal.map(day => Array.isArray(day) && day.length ? day : [blankExpense()]);
+  return next;
+}
+
+async function api(path, options = {}) {
+  const response = await fetch(path, {
+    credentials: "same-origin",
+    ...options,
+    headers: { "Content-Type": "application/json", ...(options.headers || {}) }
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(data.error || "Không thể xử lí yêu cầu này.");
+  return data;
+}
+
+function scheduleSync() {
+  if (!currentUser) return;
+  clearTimeout(syncTimer);
+  const ownerId = currentUser.id;
+  const generation = syncGeneration;
+  const snapshot = JSON.parse(JSON.stringify(state));
+  syncTimer = setTimeout(async () => {
+    if (!currentUser || currentUser.id !== ownerId || generation !== syncGeneration) return;
+    try {
+      await api("/api/learning/me", { method: "PUT", body: JSON.stringify({ state: snapshot }) });
+      if (currentUser?.id === ownerId) $("#accountStatus").title = "Bài làm đã được lưu vào tài khoản.";
+    } catch (_) {
+      if (currentUser?.id === ownerId) $("#accountStatus").title = "Chưa thể đồng bộ bài làm. Hãy kiểm tra máy chủ cục bộ.";
+    }
+  }, 650);
+}
+
+function replaceState(raw) {
+  state = prepareState(raw);
+  localStorage.setItem("smart-consumer-static", JSON.stringify(state));
+  setupNav();
+  renderJournal();
+  go(state.active);
+}
+
+function roleLabel(role) {
+  return ({ teacher: "Giáo viên", student: "Học sinh", guest: "Khách" })[role] || "Tài khoản";
+}
+
+function updateAccountBar() {
+  const status = $("#accountStatus");
+  const authButton = $("#authButton");
+  const teacherButton = $("#teacherButton");
+  const logoutButton = $("#logoutButton");
+  if (!currentUser) {
+    status.textContent = "Chưa đăng nhập";
+    status.title = "Hãy đăng nhập để lưu bài làm theo tài khoản.";
+    authButton.hidden = false;
+    teacherButton.hidden = true;
+    logoutButton.hidden = true;
+    return;
+  }
+  status.textContent = `${roleLabel(currentUser.role)}: ${currentUser.displayName}`;
+  status.title = "Bài làm được lưu riêng cho tài khoản này.";
+  authButton.hidden = true;
+  teacherButton.hidden = currentUser.role !== "teacher";
+  logoutButton.hidden = false;
+}
+
+function closeModal() {
+  $("#modalRoot").innerHTML = "";
+  document.body.classList.remove("modalOpen");
+}
+
+function showModal(title, subtitle, content) {
+  const root = $("#modalRoot");
+  root.innerHTML = `<div class="modalLayer" role="presentation"><section class="modalCard" role="dialog" aria-modal="true" aria-labelledby="modalTitle"><header class="modalTop"><div><p>${subtitle}</p><h2 id="modalTitle">${title}</h2></div><button class="modalClose" type="button" data-close aria-label="Đóng">×</button></header><div class="modalBody">${content}</div></section></div>`;
+  document.body.classList.add("modalOpen");
+  root.querySelector("[data-close]").addEventListener("click", closeModal);
+  root.querySelector(".modalLayer").addEventListener("click", event => { if (event.target === event.currentTarget) closeModal(); });
+}
+
+async function openAuthModal(initialMode = "login") {
+  showModal("Tài khoản học tập", "LƯU BÀI LÀM RIÊNG TƯ", `<p class="loadingState">Đang chuẩn bị biểu mẫu...</p>`);
+  try {
+    const setup = await api("/api/setup/status");
+    renderAuthModal(initialMode, setup.teacherExists);
+  } catch (_) {
+    showModal("Chưa kết nối được máy chủ", "TÀI KHOẢN HỌC TẬP", `<p class="emptyState">Hãy chạy <b>start-server.cmd</b>, sau đó mở trang tại địa chỉ localhost do máy chủ hiển thị.</p>`);
+  }
+}
+
+function renderAuthModal(mode, teacherExists, error = "") {
+  const isLogin = mode === "login";
+  const isTeacher = mode === "teacher";
+  const title = isLogin ? "Đăng nhập" : isTeacher ? "Thiết lập giáo viên" : "Tạo tài khoản";
+  const fields = isLogin
+    ? `<label>Tên đăng nhập<input name="username" autocomplete="username" required></label><label>Mật khẩu<input name="password" type="password" autocomplete="current-password" required></label>`
+    : `<label>Họ và tên / tên hiển thị<input name="displayName" autocomplete="name" required maxlength="80"></label><label>Tên đăng nhập<input name="username" autocomplete="username" required pattern="[a-zA-Z0-9._-]{3,40}"></label>${isTeacher ? "" : `<label>Loại tài khoản<select name="role"><option value="student">Học sinh</option><option value="guest">Khách</option></select></label>`}<label>Mật khẩu<input name="password" type="password" autocomplete="new-password" required minlength="8"></label>`;
+  const setupNote = !teacherExists && !isTeacher
+    ? `<div class="teacherSetup">Chưa có tài khoản giáo viên cho lớp này.<br><button type="button" data-open-teacher>Thiết lập giáo viên đầu tiên</button></div>`
+    : "";
+  showModal(title, "TÀI KHOẢN HỌC TẬP", `<div class="authTabs"><button type="button" class="${isLogin ? "active" : ""}" data-auth-mode="login">Đăng nhập</button><button type="button" class="${!isLogin && !isTeacher ? "active" : ""}" data-auth-mode="register">Tạo tài khoản</button></div><form class="authForm" id="authForm">${fields}<p class="authHint">${isTeacher ? "Tài khoản giáo viên có thể xem bài làm của học sinh, không xem được tài khoản khách." : "Tài khoản học sinh và khách chỉ xem được bài làm của chính mình."}</p><p class="authError" id="authError">${escapeHtml(error)}</p><button class="primary" type="submit">${isLogin ? "Đăng nhập" : isTeacher ? "Tạo tài khoản giáo viên" : "Tạo tài khoản"}</button></form>${setupNote}`);
+  document.querySelectorAll("[data-auth-mode]").forEach(button => button.addEventListener("click", () => renderAuthModal(button.dataset.authMode, teacherExists)));
+  const teacherButton = $("[data-open-teacher]");
+  if (teacherButton) teacherButton.addEventListener("click", () => renderAuthModal("teacher", teacherExists));
+  $("#authForm").addEventListener("submit", async event => {
+    event.preventDefault();
+    const form = event.currentTarget;
+    const submit = form.querySelector("[type=submit]");
+    const payload = Object.fromEntries(new FormData(form));
+    const endpoint = isLogin ? "/api/auth/login" : isTeacher ? "/api/setup/teacher" : "/api/auth/register";
+    submit.disabled = true;
+    try {
+      const result = await api(endpoint, { method: "POST", body: JSON.stringify(payload) });
+      syncGeneration += 1;
+      currentUser = result.user;
+      updateAccountBar();
+      closeModal();
+      const learning = await api("/api/learning/me");
+      replaceState(learning.state || createDefaultState());
+    } catch (requestError) {
+      renderAuthModal(mode, teacherExists, requestError.message);
+    }
+  });
+}
+
+async function initialiseAccount() {
+  updateAccountBar();
+  try {
+    const result = await api("/api/me");
+    if (!result.user) return;
+    currentUser = result.user;
+    updateAccountBar();
+    const learning = await api("/api/learning/me");
+    replaceState(learning.state || createDefaultState());
+  } catch (_) {
+    updateAccountBar();
+  }
+}
+
+async function logout() {
+  syncGeneration += 1;
+  clearTimeout(syncTimer);
+  try { await api("/api/auth/logout", { method: "POST" }); } catch (_) { /* Local state is still cleared for privacy. */ }
+  currentUser = null;
+  state = createDefaultState();
+  localStorage.removeItem("smart-consumer-static");
+  setupNav();
+  renderJournal();
+  go(0);
+  updateAccountBar();
+}
+
+function formatUpdatedAt(value) {
+  if (!value) return "Chưa nộp bài";
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? "Đã lưu bài" : `Cập nhật ${date.toLocaleString("vi-VN")}`;
+}
+
+async function openTeacherDashboard() {
+  if (currentUser?.role !== "teacher") return;
+  showModal("Bài làm của học sinh", "KHU VỰC GIÁO VIÊN", `<p class="loadingState">Đang tải danh sách học sinh...</p>`);
+  try {
+    const data = await api("/api/teacher/students");
+    const content = data.students.length
+      ? `<p class="authHint">Chỉ hiển thị tài khoản học sinh. Tài khoản khách được bảo mật và không xuất hiện ở đây.</p><div class="studentList">${data.students.map(student => `<button class="studentRow" type="button" data-student-id="${student.id}"><div><b>${escapeHtml(student.displayName)}</b><span>@${escapeHtml(student.username)} · ${formatUpdatedAt(student.updatedAt)}</span></div><em>${student.responseCount} câu trả lời · ${student.expenseCount} khoản chi</em></button>`).join("")}</div>`
+      : `<p class="emptyState">Chưa có tài khoản học sinh nào trong hệ thống.</p>`;
+    showModal("Bài làm của học sinh", "KHU VỰC GIÁO VIÊN", content);
+    document.querySelectorAll("[data-student-id]").forEach(button => button.addEventListener("click", () => openStudentWork(button.dataset.studentId)));
+  } catch (error) {
+    showModal("Không thể tải bài làm", "KHU VỰC GIÁO VIÊN", `<p class="emptyState">${escapeHtml(error.message)}</p>`);
+  }
+}
+
+function answerList(title, answers) {
+  const entries = Object.entries(answers || {});
+  return `<section><h4>${title}</h4>${entries.length ? `<ol class="answerList">${entries.map(([index, answer]) => `<li><b>Câu ${Number(index) + 1}</b>${escapeHtml(answer)}</li>`).join("")}</ol>` : `<p class="authHint">Học sinh chưa trả lời phần này.</p>`}</section>`;
+}
+
+async function openStudentWork(studentId) {
+  showModal("Bài làm học sinh", "KHU VỰC GIÁO VIÊN", `<p class="loadingState">Đang mở bài làm...</p>`);
+  try {
+    const data = await api(`/api/teacher/students/${studentId}`);
+    const journalRows = (data.state?.journal || []).flatMap((entries, dayIndex) => entries.filter(entry => entry.item || Number(entry.amount) || entry.note).map(entry => `<tr><td>Ngày ${dayIndex + 1}</td><td>${escapeHtml(entry.item || "—")}</td><td>${money(entry.amount)}</td><td>${escapeHtml(entry.kind)}</td><td>${escapeHtml(entry.note || "—")}</td></tr>`));
+    const content = data.state
+      ? `<div class="studentDetail"><div><h3>${escapeHtml(data.student.displayName)}</h3><p class="authHint">@${escapeHtml(data.student.username)} · Hoàn thành ${data.state.completed.length}/6 chặng</p></div>${answerList("Phần Quảng cáo", data.state.adResponses)}${answerList("Phần Tình huống", data.state.sitResponses)}<section><h4>Nhật ký 7 ngày</h4>${journalRows.length ? `<table class="journalPreview"><thead><tr><th>NGÀY</th><th>KHOẢN CHI</th><th>SỐ TIỀN</th><th>LOẠI</th><th>GHI CHÚ</th></tr></thead><tbody>${journalRows.join("")}</tbody></table>` : `<p class="authHint">Học sinh chưa ghi khoản chi nào.</p>`}</section></div>`
+      : `<p class="emptyState">Học sinh này chưa lưu bài làm.</p>`;
+    showModal("Bài làm học sinh", "KHU VỰC GIÁO VIÊN", content);
+  } catch (error) {
+    showModal("Không thể mở bài làm", "KHU VỰC GIÁO VIÊN", `<p class="emptyState">${escapeHtml(error.message)}</p>`);
+  }
+}
+
 $("#clearJournal").addEventListener("click", () => { state.journal = defaultJournal(); save(); renderJournal(); });
 $("#downloadJournal").addEventListener("click", () => {
   if (!state.completed.includes(5)) state.completed.push(5);
@@ -221,6 +426,11 @@ $("#downloadJournal").addEventListener("click", () => {
   download("nhat-ki-7-ngay.txt", `NHẬT KÍ 7 NGÀY TIÊU DÙNG THÔNG MINH\n\n${content}`);
 });
 
+$("#authButton").addEventListener("click", () => openAuthModal());
+$("#logoutButton").addEventListener("click", logout);
+$("#teacherButton").addEventListener("click", openTeacherDashboard);
+
 setupNav();
 renderJournal();
 go(state.active);
+initialiseAccount();

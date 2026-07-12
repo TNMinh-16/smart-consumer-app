@@ -14,6 +14,12 @@
     <div class="lessonMark">SC</div>
     <div><span>GDCD 9 · BÀI HỌC TƯƠNG TÁC</span><h1>Tiêu dùng thông minh</h1></div>
     <p>Mua đúng nhu cầu · Kiểm tra thông tin · Chi tiêu hợp lí</p>
+    <div class="accountBar" aria-label="Tài khoản">
+      <span class="accountStatus" id="accountStatus">Chưa đăng nhập</span>
+      <button class="accountButton" id="authButton" type="button">Đăng nhập</button>
+      <button class="accountButton teacherButton" id="teacherButton" type="button" hidden>Bài làm HS</button>
+      <button class="accountButton logoutButton" id="logoutButton" type="button" hidden>Đăng xuất</button>
+    </div>
   </header>
   <nav id="nav" aria-label="Các phần bài học"></nav>
 
@@ -38,6 +44,7 @@
     <section class="panel" data-panel="5"><header class="sectionHead"><span>05 · VẬN DỤNG</span><h2>Thử thách 7 ngày tiêu dùng thông minh</h2><p>Mỗi ngày em có thể ghi nhiều khoản chi, kể cả nhu cầu và mong muốn.</p></header><div class="journalSummary"><div><span>TỔNG CHI TRONG TUẦN</span><b id="weekTotal">0đ</b></div><div><span>KHOẢN NHU CẦU</span><b id="needCount">0</b></div><div><span>KHOẢN MONG MUỐN</span><b id="wantCount">0</b></div></div><p class="tableHint">Trên điện thoại, hãy kéo ngang bảng để xem đủ các cột.</p><div class="journalTableWrap"><table class="journalTable"><thead><tr><th>NGÀY</th><th>KHOẢN CHI</th><th>SỐ TIỀN</th><th>PHÂN LOẠI</th><th>EM CÓ HÀI LÒNG? VÌ SAO?</th><th></th></tr></thead><tbody id="journalRows"></tbody></table></div><div class="challenge"><blockquote>“Đừng mua vì quảng cáo hấp dẫn,<br>hãy mua vì em thật sự cần.”</blockquote><div class="actions"><button class="ghost" id="clearJournal">Làm lại</button><button class="ghost" onclick="print()">In bài</button><button class="primary" id="downloadJournal">Lưu & tải xuống</button></div></div></section>
   </main>
   <footer><b>SMART CONSUMER · GDCD 9</b><span>Học để lựa chọn tốt hơn — mỗi ngày.</span></footer>
+  <div id="modalRoot" aria-live="polite"></div>
   <script src="static.js"></script>
 </body>
 </html>
