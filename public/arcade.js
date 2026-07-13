@@ -75,23 +75,34 @@ function startBGM(gameId) {
     const patterns = {
       1: [261,294,329,349,392,349,329,294],   // Đô trưởng — vui tươi
       2: [220,246,261,220,196,220,246,261],   // Thứ — hồi hộp
-      3: [392,440,494,523,494,440,392,349],   // Sol trưởng — phấn khởi
-      4: [174,196,220,196,174,164,174,196]    // Tông thấp — căng thẳng
+      3: [261,330,392,523,392,330,261,330],   // Piano arpeggio nhẹ nhàng
+      4: [146,146,146,174,146,146,146,196]    // Bass dồn dập
     };
     const notes = patterns[gameId] || patterns[1];
     let idx = 0;
-    const tempo = gameId === 4 ? 0.32 : 0.28;
+    const tempo = gameId === 4 ? 0.2 : (gameId === 3 ? 0.4 : 0.28);
 
     function tick() {
       if (!bgmGain) return;
       const osc = ac.createOscillator();
       const g   = ac.createGain();
       osc.connect(g); g.connect(bgmGain);
-      osc.type = gameId === 2 ? 'triangle' : 'sine';
+      
       osc.frequency.setValueAtTime(notes[idx % notes.length], ac.currentTime);
-      g.gain.setValueAtTime(0.8, ac.currentTime);
-      g.gain.exponentialRampToValueAtTime(0.001, ac.currentTime + tempo * 0.85);
-      osc.start(ac.currentTime); osc.stop(ac.currentTime + tempo);
+      
+      if (gameId === 3) {
+        // Piano-like
+        osc.type = 'sine';
+        g.gain.setValueAtTime(0, ac.currentTime);
+        g.gain.linearRampToValueAtTime(0.9, ac.currentTime + 0.02);
+        g.gain.exponentialRampToValueAtTime(0.001, ac.currentTime + tempo * 2.0);
+      } else {
+        osc.type = gameId === 2 ? 'triangle' : (gameId === 4 ? 'square' : 'sine');
+        g.gain.setValueAtTime(0.8, ac.currentTime);
+        g.gain.exponentialRampToValueAtTime(0.001, ac.currentTime + tempo * 0.85);
+      }
+
+      osc.start(ac.currentTime); osc.stop(ac.currentTime + tempo * (gameId === 3 ? 2.0 : 1.0));
       idx++;
       bgmNode = setTimeout(tick, tempo * 1000);
     }
@@ -658,7 +669,7 @@ function slicerLoop(time) {
   if (gameState.nextSpawn <= 0) {
     const x   = 60 + Math.random() * (gameCanvas.width - 120);
     const vx  = (Math.random() - 0.5) * 80;
-    const vy  = -1000 - Math.random() * 200; // lực đẩy -1000 hợp lý
+    const vy  = -650 - Math.random() * 150; // bay chậm hơn để dễ đọc
     const isBad = Math.random() < 0.6;
     const text  = isBad
       ? ["Giá siêu rẻ","Không đổi trả","Cam kết 100%","Sale 80%"][Math.floor(Math.random()*4)]
@@ -690,7 +701,7 @@ function slicerLoop(time) {
   // Update & draw cards
   for (let i = gameState.cards.length - 1; i >= 0; i--) {
     let c = gameState.cards[i];
-    c.vy  += 750 * (dt/gameState.slowMo);
+    c.vy  += 500 * (dt/gameState.slowMo); // trọng lực giảm xuống để thẻ bay lơ lửng lâu hơn
     c.x   += c.vx * dt;
     c.y   += c.vy * dt;
     c.rot += c.vrot * dt;
@@ -1021,6 +1032,10 @@ function startDefenseGame() {
     } else {
       SFX.shieldMiss();
       spawnMissEffect();
+      gameState.hearts--;
+      SFX.heartLost();
+      updateGameHeader();
+      if (gameState.hearts <= 0) { gameOver("Bấm hụt quá nhiều, bạn đã hết tim!"); return; }
     }
     // Không gọi renderDefenseGame ở đây ngay, để animation chạy xong rồi loop sẽ xóa
   };
