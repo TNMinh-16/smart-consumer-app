@@ -1,21 +1,21 @@
 import { createServer } from "node:http";
-import { mkdir, readFile, stat } from "node:fs/promises";
+import { readFile, stat } from "node:fs/promises";
 import { createHash, randomBytes, scryptSync, timingSafeEqual } from "node:crypto";
 import { fileURLToPath } from "node:url";
 import { dirname, extname, join, resolve, sep } from "node:path";
 import pg from "pg";
 
 const { Pool } = pg;
-const ROOT = dirname(fileURLToPath(import.meta.url));
-const PUBLIC_DIR = join(ROOT, "public");
-const PORT = Number(process.env.PORT || 3000);
-const SESSION_DAYS = 7;
-const MAX_BODY_BYTES = 1_000_000;
+const ROOT        = dirname(fileURLToPath(import.meta.url));
+const PUBLIC_DIR  = join(ROOT, "public");
+const PORT        = Number(process.env.PORT || 3000);
+const SESSION_DAYS    = 7;
+const MAX_BODY_BYTES  = 1_000_000;
 const MIME_TYPES = {
-  ".css": "text/css; charset=utf-8",
+  ".css":  "text/css; charset=utf-8",
   ".html": "text/html; charset=utf-8",
-  ".js": "text/javascript; charset=utf-8",
-  ".svg": "image/svg+xml"
+  ".js":   "text/javascript; charset=utf-8",
+  ".svg":  "image/svg+xml"
 };
 
 const pool = new Pool({
@@ -23,78 +23,88 @@ const pool = new Pool({
   ssl: process.env.DATABASE_URL ? { rejectUnauthorized: false } : false
 });
 
+// ─── Database Init (tối ưu: bỏ ALTER TABLE dư thừa, thêm indexes) ─────────────
 async function initDB() {
   await pool.query(`
     CREATE TABLE IF NOT EXISTS users (
-      id SERIAL PRIMARY KEY,
-      username VARCHAR(255) NOT NULL UNIQUE,
-      display_name VARCHAR(255) NOT NULL,
-      role VARCHAR(50) NOT NULL CHECK (role IN ('teacher', 'student', 'guest')),
-      password_hash TEXT NOT NULL,
-      password_salt TEXT NOT NULL,
-      created_at TEXT NOT NULL,
-      updated_at TEXT NOT NULL
+      id            SERIAL PRIMARY KEY,
+      username      VARCHAR(255) NOT NULL UNIQUE,
+      display_name  VARCHAR(255) NOT NULL,
+      role          VARCHAR(50)  NOT NULL CHECK (role IN ('teacher', 'student', 'guest')),
+      password_hash TEXT         NOT NULL,
+      password_salt TEXT         NOT NULL,
+      created_at    TEXT         NOT NULL,
+      updated_at    TEXT         NOT NULL
     );
+
     CREATE TABLE IF NOT EXISTS sessions (
-      id SERIAL PRIMARY KEY,
-      user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-      token_hash TEXT NOT NULL UNIQUE,
-      expires_at TEXT NOT NULL,
-      created_at TEXT NOT NULL,
-      last_seen_at TEXT NOT NULL
+      id           SERIAL PRIMARY KEY,
+      user_id      INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      token_hash   TEXT    NOT NULL UNIQUE,
+      expires_at   TEXT    NOT NULL,
+      created_at   TEXT    NOT NULL,
+      last_seen_at TEXT    NOT NULL
     );
-    CREATE INDEX IF NOT EXISTS sessions_token_idx ON sessions(token_hash);
+    CREATE INDEX IF NOT EXISTS sessions_token_idx   ON sessions(token_hash);
+    CREATE INDEX IF NOT EXISTS sessions_user_idx    ON sessions(user_id);
+    CREATE INDEX IF NOT EXISTS sessions_expires_idx ON sessions(expires_at);
+
     CREATE TABLE IF NOT EXISTS learning_state (
-      user_id INTEGER PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
-      active_step INTEGER NOT NULL DEFAULT 0 CHECK (active_step BETWEEN 0 AND 5),
-      completed_json TEXT NOT NULL DEFAULT '[]',
-      ad_set_json TEXT NOT NULL DEFAULT '[]',
-      sit_set_json TEXT NOT NULL DEFAULT '[]',
-      ad_position INTEGER NOT NULL DEFAULT 0 CHECK (ad_position BETWEEN 0 AND 5),
-      sit_position INTEGER NOT NULL DEFAULT 0 CHECK (sit_position BETWEEN 0 AND 5),
-      journal_reflection TEXT NOT NULL DEFAULT '',
-      updated_at TEXT NOT NULL
+      user_id            INTEGER PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+      active_step        INTEGER NOT NULL DEFAULT 0 CHECK (active_step BETWEEN 0 AND 5),
+      completed_json     TEXT    NOT NULL DEFAULT '[]',
+      ad_set_json        TEXT    NOT NULL DEFAULT '[]',
+      sit_set_json       TEXT    NOT NULL DEFAULT '[]',
+      ad_position        INTEGER NOT NULL DEFAULT 0 CHECK (ad_position BETWEEN 0 AND 5),
+      sit_position       INTEGER NOT NULL DEFAULT 0 CHECK (sit_position BETWEEN 0 AND 5),
+      journal_reflection TEXT    NOT NULL DEFAULT '',
+      updated_at         TEXT    NOT NULL
     );
-    ALTER TABLE learning_state ADD COLUMN IF NOT EXISTS journal_reflection TEXT NOT NULL DEFAULT '';
-    
+
     CREATE TABLE IF NOT EXISTS teacher_feedbacks (
-      student_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-      activity_type VARCHAR(50) NOT NULL,
-      question_index INTEGER NOT NULL,
-      status VARCHAR(50) NOT NULL DEFAULT 'Đạt',
-      comment TEXT NOT NULL DEFAULT '',
-      rubric TEXT NOT NULL DEFAULT '',
-      updated_at TEXT NOT NULL,
+      student_id     INTEGER     NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      activity_type  VARCHAR(50) NOT NULL,
+      question_index INTEGER     NOT NULL,
+      status         VARCHAR(50) NOT NULL DEFAULT 'Đạt',
+      comment        TEXT        NOT NULL DEFAULT '',
+      rubric         TEXT        NOT NULL DEFAULT '',
+      updated_at     TEXT        NOT NULL,
       PRIMARY KEY (student_id, activity_type, question_index)
     );
+    CREATE INDEX IF NOT EXISTS feedbacks_student_idx ON teacher_feedbacks(student_id);
+
     CREATE TABLE IF NOT EXISTS activity_responses (
-      user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-      activity_type VARCHAR(50) NOT NULL CHECK (activity_type IN ('ad', 'situation')),
-      question_index INTEGER NOT NULL CHECK (question_index BETWEEN 0 AND 9),
-      response TEXT NOT NULL,
-      updated_at TEXT NOT NULL,
+      user_id        INTEGER     NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      activity_type  VARCHAR(50) NOT NULL CHECK (activity_type IN ('ad', 'situation')),
+      question_index INTEGER     NOT NULL CHECK (question_index BETWEEN 0 AND 9),
+      response       TEXT        NOT NULL,
+      updated_at     TEXT        NOT NULL,
       PRIMARY KEY (user_id, activity_type, question_index)
     );
+    CREATE INDEX IF NOT EXISTS responses_user_idx ON activity_responses(user_id);
+
     CREATE TABLE IF NOT EXISTS expense_entries (
-      id SERIAL PRIMARY KEY,
-      user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-      day_index INTEGER NOT NULL CHECK (day_index BETWEEN 0 AND 6),
+      id             SERIAL  PRIMARY KEY,
+      user_id        INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      day_index      INTEGER NOT NULL CHECK (day_index BETWEEN 0 AND 6),
       entry_position INTEGER NOT NULL,
-      item TEXT NOT NULL DEFAULT '',
-      amount INTEGER NOT NULL DEFAULT 0 CHECK (amount BETWEEN 0 AND 1000000000),
-      category VARCHAR(50) NOT NULL CHECK (category IN ('Nhu cầu', 'Mong muốn')),
-      note TEXT NOT NULL DEFAULT '',
-      created_at TEXT NOT NULL,
-      updated_at TEXT NOT NULL
+      item           TEXT    NOT NULL DEFAULT '',
+      amount         INTEGER NOT NULL DEFAULT 0 CHECK (amount BETWEEN 0 AND 1000000000),
+      category       VARCHAR(50) NOT NULL CHECK (category IN ('Nhu cầu', 'Mong muốn')),
+      note           TEXT    NOT NULL DEFAULT '',
+      created_at     TEXT    NOT NULL,
+      updated_at     TEXT    NOT NULL
     );
     CREATE INDEX IF NOT EXISTS expenses_user_day_idx ON expense_entries(user_id, day_index, entry_position);
+    CREATE INDEX IF NOT EXISTS expenses_user_idx     ON expense_entries(user_id);
   `);
 }
 initDB().catch(err => console.error("Database Init Error:", err));
 
-const blankExpense = () => ({ item: "", amount: "", kind: "Nhu cầu", note: "" });
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+const blankExpense  = () => ({ item: "", amount: "", kind: "Nhu cầu", note: "" });
 const defaultJournal = () => Array.from({ length: 7 }, () => [blankExpense()]);
-const now = () => new Date().toISOString();
+const now       = () => new Date().toISOString();
 const hashToken = token => createHash("sha256").update(token).digest("hex");
 const publicUser = user => ({ id: user.id, username: user.username, displayName: user.display_name, role: user.role });
 
@@ -135,15 +145,15 @@ function validPassword(password) {
 
 function verifyPassword(password, user) {
   if (!validPassword(password)) return false;
-  const actual = Buffer.from(user.password_hash, "base64");
+  const actual   = Buffer.from(user.password_hash, "base64");
   const expected = scryptSync(password, user.password_salt, 64);
   return actual.length === expected.length && timingSafeEqual(actual, expected);
 }
 
 function cleanAccount(data) {
-  const username = String(data?.username || "").trim().toLowerCase();
+  const username    = String(data?.username || "").trim().toLowerCase();
   const displayName = String(data?.displayName || "").trim().replace(/\s+/g, " ");
-  const password = data?.password;
+  const password    = data?.password;
   if (!/^[a-z0-9._-]{3,40}$/.test(username)) throw new Error("Tên đăng nhập gồm 3–40 ký tự: chữ thường, số, dấu chấm, gạch dưới hoặc gạch ngang.");
   if (displayName.length < 2 || displayName.length > 80) throw new Error("Họ tên hoặc tên hiển thị cần từ 2 đến 80 ký tự.");
   if (!validPassword(password)) throw new Error("Mật khẩu cần từ 8 đến 128 ký tự.");
@@ -181,10 +191,10 @@ function journal(value) {
   for (let dayIndex = 0; dayIndex < 7; dayIndex += 1) {
     const entries = Array.isArray(value[dayIndex]) ? value[dayIndex] : [];
     const cleaned = entries.slice(0, 40).map(entry => ({
-      item: String(entry?.item ?? "").trim().slice(0, 160),
+      item:   String(entry?.item   ?? "").trim().slice(0, 160),
       amount: numberInRange(entry?.amount, 0, 1000000000, 0),
-      kind: entry?.kind === "Mong muốn" ? "Mong muốn" : "Nhu cầu",
-      note: String(entry?.note ?? "").trim().slice(0, 600)
+      kind:   entry?.kind === "Mong muốn" ? "Mong muốn" : "Nhu cầu",
+      note:   String(entry?.note   ?? "").trim().slice(0, 600)
     }));
     result[dayIndex] = cleaned.length ? cleaned : [blankExpense()];
   }
@@ -192,26 +202,27 @@ function journal(value) {
 }
 
 function cleanLearningState(value) {
-  const raw = value && typeof value === "object" ? value : {};
+  const raw       = value && typeof value === "object" ? value : {};
   const completed = Array.isArray(raw.completed)
     ? [...new Set(raw.completed.map(step => numberInRange(step, 0, 5, -1)).filter(step => step >= 0))]
     : [];
   return {
-    active: numberInRange(raw.active, 0, 5),
+    active:            numberInRange(raw.active, 0, 5),
     completed,
-    adSet: questionSet(raw.adSet),
-    sitSet: questionSet(raw.sitSet),
-    adPosition: numberInRange(raw.adPosition, 0, 5),
-    sitPosition: numberInRange(raw.sitPosition, 0, 5),
-    adResponses: responses(raw.adResponses),
-    sitResponses: responses(raw.sitResponses),
-    journal: journal(raw.journal),
+    adSet:             questionSet(raw.adSet),
+    sitSet:            questionSet(raw.sitSet),
+    adPosition:        numberInRange(raw.adPosition, 0, 5),
+    sitPosition:       numberInRange(raw.sitPosition, 0, 5),
+    adResponses:       responses(raw.adResponses),
+    sitResponses:      responses(raw.sitResponses),
+    journal:           journal(raw.journal),
     journalReflection: String(raw.journalReflection ?? "").trim().slice(0, 1000)
   };
 }
 
+// ─── Session ──────────────────────────────────────────────────────────────────
 async function createSession(userId) {
-  const token = randomBytes(32).toString("base64url");
+  const token     = randomBytes(32).toString("base64url");
   const createdAt = now();
   const expiresAt = new Date(Date.now() + SESSION_DAYS * 86400000).toISOString();
   await pool.query(
@@ -238,83 +249,94 @@ async function currentUser(request) {
 
 async function requireUser(request, response) {
   const user = await currentUser(request);
-  if (!user) {
-    message(response, 401, "Vui lòng đăng nhập để tiếp tục.");
-    return null;
-  }
+  if (!user) { message(response, 401, "Vui lòng đăng nhập để tiếp tục."); return null; }
   return user;
 }
 
+// ─── Learning State ───────────────────────────────────────────────────────────
 async function getLearningState(userId) {
   const saved = (await pool.query("SELECT * FROM learning_state WHERE user_id = $1", [userId])).rows[0];
   if (!saved) return null;
   const state = {
-    active: saved.active_step,
-    completed: parseJson(saved.completed_json, []),
-    adSet: parseJson(saved.ad_set_json, []),
-    sitSet: parseJson(saved.sit_set_json, []),
-    adPosition: saved.ad_position,
-    sitPosition: saved.sit_position,
-    adResponses: {},
-    sitResponses: {},
-    journal: defaultJournal(),
+    active:            saved.active_step,
+    completed:         parseJson(saved.completed_json, []),
+    adSet:             parseJson(saved.ad_set_json, []),
+    sitSet:            parseJson(saved.sit_set_json, []),
+    adPosition:        saved.ad_position,
+    sitPosition:       saved.sit_position,
+    adResponses:       {},
+    sitResponses:      {},
+    journal:           defaultJournal(),
     journalReflection: saved.journal_reflection || "",
-    feedbacks: {}
+    feedbacks:         {}
   };
-  const answers = (await pool.query("SELECT activity_type, question_index, response FROM activity_responses WHERE user_id = $1", [userId])).rows;
-  for (const answer of answers) state[answer.activity_type === "ad" ? "adResponses" : "sitResponses"][answer.question_index] = answer.response;
-  
-  const feedbacks = (await pool.query("SELECT activity_type, question_index, status, comment, rubric FROM teacher_feedbacks WHERE student_id = $1", [userId])).rows;
+
+  const answers = (await pool.query(
+    "SELECT activity_type, question_index, response FROM activity_responses WHERE user_id = $1",
+    [userId]
+  )).rows;
+  for (const a of answers) state[a.activity_type === "ad" ? "adResponses" : "sitResponses"][a.question_index] = a.response;
+
+  const feedbacks = (await pool.query(
+    "SELECT activity_type, question_index, status, comment, rubric FROM teacher_feedbacks WHERE student_id = $1",
+    [userId]
+  )).rows;
   for (const f of feedbacks) {
-    const key = `${f.activity_type}_${f.question_index}`;
-    state.feedbacks[key] = { status: f.status, comment: f.comment, rubric: f.rubric };
+    state.feedbacks[`${f.activity_type}_${f.question_index}`] = { status: f.status, comment: f.comment, rubric: f.rubric };
   }
-  
-  const expenses = (await pool.query("SELECT day_index, item, amount, category, note FROM expense_entries WHERE user_id = $1 ORDER BY day_index, entry_position", [userId])).rows;
+
+  const expenses = (await pool.query(
+    "SELECT day_index, item, amount, category, note FROM expense_entries WHERE user_id = $1 ORDER BY day_index, entry_position",
+    [userId]
+  )).rows;
   const journalEntries = Array.from({ length: 7 }, () => []);
-  for (const expense of expenses) journalEntries[expense.day_index].push({ item: expense.item, amount: String(expense.amount || ""), kind: expense.category, note: expense.note });
+  for (const e of expenses) journalEntries[e.day_index].push({ item: e.item, amount: String(e.amount || ""), kind: e.category, note: e.note });
   state.journal = journalEntries.map(entries => entries.length ? entries : [blankExpense()]);
+
   return cleanLearningState(state);
 }
 
 async function saveLearningState(userId, rawState) {
-  const state = cleanLearningState(rawState);
+  const state     = cleanLearningState(rawState);
   const updatedAt = now();
-  const client = await pool.connect();
+  const client    = await pool.connect();
   try {
     await client.query("BEGIN");
     await client.query(`
       INSERT INTO learning_state (user_id, active_step, completed_json, ad_set_json, sit_set_json, ad_position, sit_position, journal_reflection, updated_at)
       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
       ON CONFLICT(user_id) DO UPDATE SET
-        active_step = EXCLUDED.active_step,
-        completed_json = EXCLUDED.completed_json,
-        ad_set_json = EXCLUDED.ad_set_json,
-        sit_set_json = EXCLUDED.sit_set_json,
-        ad_position = EXCLUDED.ad_position,
-        sit_position = EXCLUDED.sit_position,
+        active_step        = EXCLUDED.active_step,
+        completed_json     = EXCLUDED.completed_json,
+        ad_set_json        = EXCLUDED.ad_set_json,
+        sit_set_json       = EXCLUDED.sit_set_json,
+        ad_position        = EXCLUDED.ad_position,
+        sit_position       = EXCLUDED.sit_position,
         journal_reflection = EXCLUDED.journal_reflection,
-        updated_at = EXCLUDED.updated_at
-    `, [userId, state.active, JSON.stringify(state.completed), JSON.stringify(state.adSet), JSON.stringify(state.sitSet), state.adPosition, state.sitPosition, state.journalReflection, updatedAt]);
-    
+        updated_at         = EXCLUDED.updated_at
+    `, [userId, state.active, JSON.stringify(state.completed), JSON.stringify(state.adSet),
+        JSON.stringify(state.sitSet), state.adPosition, state.sitPosition, state.journalReflection, updatedAt]);
+
     await client.query("DELETE FROM activity_responses WHERE user_id = $1", [userId]);
-    for (const [questionIndex, answer] of Object.entries(state.adResponses)) {
-      await client.query("INSERT INTO activity_responses (user_id, activity_type, question_index, response, updated_at) VALUES ($1, $2, $3, $4, $5)", [userId, "ad", Number(questionIndex), answer, updatedAt]);
+    for (const [qi, ans] of Object.entries(state.adResponses)) {
+      await client.query("INSERT INTO activity_responses (user_id, activity_type, question_index, response, updated_at) VALUES ($1, $2, $3, $4, $5)",
+        [userId, "ad", Number(qi), ans, updatedAt]);
     }
-    for (const [questionIndex, answer] of Object.entries(state.sitResponses)) {
-      await client.query("INSERT INTO activity_responses (user_id, activity_type, question_index, response, updated_at) VALUES ($1, $2, $3, $4, $5)", [userId, "situation", Number(questionIndex), answer, updatedAt]);
+    for (const [qi, ans] of Object.entries(state.sitResponses)) {
+      await client.query("INSERT INTO activity_responses (user_id, activity_type, question_index, response, updated_at) VALUES ($1, $2, $3, $4, $5)",
+        [userId, "situation", Number(qi), ans, updatedAt]);
     }
-    
+
     await client.query("DELETE FROM expense_entries WHERE user_id = $1", [userId]);
     for (let dayIndex = 0; dayIndex < state.journal.length; dayIndex++) {
       const entries = state.journal[dayIndex];
-      for (let entryPosition = 0; entryPosition < entries.length; entryPosition++) {
-        const entry = entries[entryPosition];
-        if (entry.item || Number(entry.amount) || entry.note) {
-          await client.query(`
-            INSERT INTO expense_entries (user_id, day_index, entry_position, item, amount, category, note, created_at, updated_at)
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-          `, [userId, dayIndex, entryPosition, entry.item, Number(entry.amount) || 0, entry.kind, entry.note, updatedAt, updatedAt]);
+      for (let pos = 0; pos < entries.length; pos++) {
+        const e = entries[pos];
+        if (e.item || Number(e.amount) || e.note) {
+          await client.query(
+            "INSERT INTO expense_entries (user_id, day_index, entry_position, item, amount, category, note, created_at, updated_at) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)",
+            [userId, dayIndex, pos, e.item, Number(e.amount) || 0, e.kind, e.note, updatedAt, updatedAt]
+          );
         }
       }
     }
@@ -328,6 +350,7 @@ async function saveLearningState(userId, rawState) {
   return state;
 }
 
+// ─── Utilities ────────────────────────────────────────────────────────────────
 async function readJson(request) {
   let body = "";
   for await (const chunk of request) {
@@ -340,52 +363,51 @@ async function readJson(request) {
 async function teacherRequired(request, response) {
   const user = await requireUser(request, response);
   if (!user) return null;
-  if (user.role !== "teacher") {
-    message(response, 403, "Chỉ giáo viên mới có quyền xem bài làm của học sinh.");
-    return null;
-  }
+  if (user.role !== "teacher") { message(response, 403, "Chỉ giáo viên mới có quyền xem bài làm của học sinh."); return null; }
   return user;
 }
 
+// ─── API Router ───────────────────────────────────────────────────────────────
 async function handleApi(request, response, url) {
   const { pathname } = url;
+
   if (pathname === "/api/setup/status" && request.method === "GET") {
     const teacher = (await pool.query("SELECT 1 FROM users WHERE role = 'teacher' LIMIT 1")).rows[0];
     return json(response, 200, { teacherExists: Boolean(teacher) });
   }
   if (pathname === "/api/setup/teacher" && request.method === "POST") {
     if ((await pool.query("SELECT 1 FROM users WHERE role = 'teacher' LIMIT 1")).rows[0]) return message(response, 409, "Tài khoản giáo viên đầu tiên đã được thiết lập.");
-    const account = cleanAccount(await readJson(request));
+    const account  = cleanAccount(await readJson(request));
     if ((await pool.query("SELECT 1 FROM users WHERE username = $1", [account.username])).rows[0]) return message(response, 409, "Tên đăng nhập đã được sử dụng.");
-    const password = passwordRecord(account.password);
+    const pw        = passwordRecord(account.password);
     const createdAt = now();
-    const result = await pool.query(
+    const result    = await pool.query(
       "INSERT INTO users (username, display_name, role, password_hash, password_salt, created_at, updated_at) VALUES ($1, $2, 'teacher', $3, $4, $5, $6) RETURNING id",
-      [account.username, account.displayName, password.hash, password.salt, createdAt, createdAt]
+      [account.username, account.displayName, pw.hash, pw.salt, createdAt, createdAt]
     );
-    const user = (await pool.query("SELECT id, username, display_name, role FROM users WHERE id = $1", [result.rows[0].id])).rows[0];
+    const user  = (await pool.query("SELECT id, username, display_name, role FROM users WHERE id = $1", [result.rows[0].id])).rows[0];
     const token = await createSession(user.id);
     return json(response, 201, { user: publicUser(user) }, { "Set-Cookie": sessionCookie(token) });
   }
   if (pathname === "/api/auth/register" && request.method === "POST") {
     const data = await readJson(request);
     if (!["student", "guest"].includes(data.role)) return message(response, 400, "Chỉ có thể tự tạo tài khoản học sinh hoặc khách.");
-    const account = cleanAccount(data);
+    const account  = cleanAccount(data);
     if ((await pool.query("SELECT 1 FROM users WHERE username = $1", [account.username])).rows[0]) return message(response, 409, "Tên đăng nhập đã được sử dụng.");
-    const password = passwordRecord(account.password);
+    const pw        = passwordRecord(account.password);
     const createdAt = now();
-    const result = await pool.query(
+    const result    = await pool.query(
       "INSERT INTO users (username, display_name, role, password_hash, password_salt, created_at, updated_at) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id",
-      [account.username, account.displayName, data.role, password.hash, password.salt, createdAt, createdAt]
+      [account.username, account.displayName, data.role, pw.hash, pw.salt, createdAt, createdAt]
     );
-    const user = (await pool.query("SELECT id, username, display_name, role FROM users WHERE id = $1", [result.rows[0].id])).rows[0];
+    const user  = (await pool.query("SELECT id, username, display_name, role FROM users WHERE id = $1", [result.rows[0].id])).rows[0];
     const token = await createSession(user.id);
     return json(response, 201, { user: publicUser(user) }, { "Set-Cookie": sessionCookie(token) });
   }
   if (pathname === "/api/auth/login" && request.method === "POST") {
-    const data = await readJson(request);
+    const data     = await readJson(request);
     const username = String(data?.username || "").trim().toLowerCase();
-    const user = (await pool.query("SELECT * FROM users WHERE username = $1", [username])).rows[0];
+    const user     = (await pool.query("SELECT * FROM users WHERE username = $1", [username])).rows[0];
     if (!user || !verifyPassword(data?.password, user)) return message(response, 401, "Tên đăng nhập hoặc mật khẩu chưa đúng.");
     const token = await createSession(user.id);
     return json(response, 200, { user: publicUser(user) }, { "Set-Cookie": sessionCookie(token) });
@@ -416,58 +438,58 @@ async function handleApi(request, response, url) {
       SELECT u.id, u.username, u.display_name AS "displayName", u.created_at AS "createdAt",
         ls.updated_at AS "updatedAt",
         (SELECT COUNT(*) FROM activity_responses ar WHERE ar.user_id = u.id) AS "responseCount",
-        (SELECT COUNT(*) FROM expense_entries ee WHERE ee.user_id = u.id) AS "expenseCount"
+        (SELECT COUNT(*) FROM expense_entries   ee WHERE ee.user_id = u.id) AS "expenseCount"
       FROM users u LEFT JOIN learning_state ls ON ls.user_id = u.id
       WHERE u.role = 'student'
       ORDER BY LOWER(u.display_name), u.username
     `)).rows;
-    // Format numeric strings correctly
-    const parsedStudents = students.map(s => ({
-       ...s,
-       responseCount: Number(s.responseCount),
-       expenseCount: Number(s.expenseCount)
-    }));
-    return json(response, 200, { students: parsedStudents });
+    return json(response, 200, {
+      students: students.map(s => ({ ...s, responseCount: Number(s.responseCount), expenseCount: Number(s.expenseCount) }))
+    });
   }
+
   const feedbackMatch = pathname.match(/^\/api\/teacher\/students\/(\d+)\/feedback$/);
   if (feedbackMatch && request.method === "POST") {
     if (!(await teacherRequired(request, response))) return;
-    const studentId = Number(feedbackMatch[1]);
-    const data = await readJson(request);
-    const activityType = String(data.activityType || "ad");
-    const questionIndex = Number(data.questionIndex || 0);
-    const status = String(data.status || "Đạt");
-    const comment = String(data.comment || "").slice(0, 1000);
-    const rubric = String(data.rubric || "").slice(0, 1000);
-    const updatedAt = now();
-    
+    const studentId   = Number(feedbackMatch[1]);
+    const data        = await readJson(request);
+    const updatedAt   = now();
     await pool.query(`
       INSERT INTO teacher_feedbacks (student_id, activity_type, question_index, status, comment, rubric, updated_at)
       VALUES ($1, $2, $3, $4, $5, $6, $7)
       ON CONFLICT(student_id, activity_type, question_index) DO UPDATE SET
-        status = EXCLUDED.status,
-        comment = EXCLUDED.comment,
-        rubric = EXCLUDED.rubric,
+        status     = EXCLUDED.status,
+        comment    = EXCLUDED.comment,
+        rubric     = EXCLUDED.rubric,
         updated_at = EXCLUDED.updated_at
-    `, [studentId, activityType, questionIndex, status, comment, rubric, updatedAt]);
-    
+    `, [studentId, String(data.activityType || "ad"), Number(data.questionIndex || 0),
+        String(data.status  || "Đạt").slice(0, 50),
+        String(data.comment || "").slice(0, 1000),
+        String(data.rubric  || "").slice(0, 1000),
+        updatedAt]);
     return json(response, 200, { ok: true });
   }
 
   const studentMatch = pathname.match(/^\/api\/teacher\/students\/(\d+)$/);
   if (studentMatch && request.method === "GET") {
     if (!(await teacherRequired(request, response))) return;
-    const student = (await pool.query("SELECT id, username, display_name, role FROM users WHERE id = $1 AND role = 'student'", [Number(studentMatch[1])])).rows[0];
+    const student = (await pool.query(
+      "SELECT id, username, display_name, role FROM users WHERE id = $1 AND role = 'student'",
+      [Number(studentMatch[1])]
+    )).rows[0];
     if (!student) return message(response, 404, "Không tìm thấy học sinh.");
     return json(response, 200, { student: publicUser(student), state: await getLearningState(student.id) });
   }
+
   return message(response, 404, "Không tìm thấy chức năng yêu cầu.");
 }
 
+// ─── Static Files ─────────────────────────────────────────────────────────────
 async function serveStatic(response, pathname) {
-  const decoded = decodeURIComponent(pathname === "/" ? "/index.html" : pathname);
+  const decoded  = decodeURIComponent(pathname === "/" ? "/index.html" : pathname);
   const filePath = resolve(PUBLIC_DIR, `.${decoded}`);
-  if (!filePath.startsWith(`${PUBLIC_DIR}${sep}`) && filePath !== join(PUBLIC_DIR, "index.html")) return message(response, 403, "Không được phép truy cập tệp này.");
+  if (!filePath.startsWith(`${PUBLIC_DIR}${sep}`) && filePath !== join(PUBLIC_DIR, "index.html"))
+    return message(response, 403, "Không được phép truy cập tệp này.");
   try {
     const file = await stat(filePath);
     if (!file.isFile()) return message(response, 404, "Không tìm thấy trang.");
@@ -482,6 +504,7 @@ async function serveStatic(response, pathname) {
   }
 }
 
+// ─── Server ───────────────────────────────────────────────────────────────────
 const server = createServer(async (request, response) => {
   try {
     const url = new URL(request.url || "/", `http://${request.headers.host || "localhost"}`);

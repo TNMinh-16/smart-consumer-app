@@ -101,19 +101,29 @@
   margin-top: auto;
 }
 
-/* GAME VIEWPORT */
+/* GAME VIEWPORT — thân thiện cả mobile lẫn desktop */
 #gameViewport {
   background: #0f172a;
-  border-radius: 16px;
+  border-radius: 20px;
   overflow: hidden;
   position: relative;
   width: 100%;
-  max-width: 600px;
+  max-width: 480px;
   margin: 0 auto;
-  aspect-ratio: 9/16;
-  max-height: 80vh;
   display: flex;
   flex-direction: column;
+  /* Chiều cao thích nghi: 80dvh trên desktop, gần full trên mobile */
+  height: min(80dvh, 700px);
+  min-height: 460px;
+  box-shadow: 0 24px 64px rgba(0,0,0,0.35), 0 0 0 1px rgba(255,255,255,0.06);
+}
+
+@media (max-width: 520px) {
+  #gameViewport {
+    border-radius: 12px;
+    max-width: 100%;
+    height: min(85dvh, 640px);
+  }
 }
 
 .gameHeader {

@@ -556,7 +556,7 @@ function slicerLoop(time) {
   if (gameState.nextSpawn <= 0) {
     const x   = 60 + Math.random() * (gameCanvas.width - 120);
     const vx  = (Math.random() - 0.5) * 80;
-    const vy  = -620 - Math.random() * 200; // bay cao hơn
+    const vy  = -820 - Math.random() * 250; // bay cao hơn nữa
     const isBad = Math.random() < 0.6;
     const text  = isBad
       ? ["Giá siêu rẻ","Không đổi trả","Cam kết 100%","Sale 80%"][Math.floor(Math.random()*4)]
@@ -685,13 +685,15 @@ function spawnRhythmRow() {
   const el = document.createElement("div");
   el.className = `rhythmTile ${isCorrect ? "correct" : "trap"}`;
   el.textContent = isCorrect ? correctStep : traps[Math.floor(Math.random()*traps.length)];
+  // Tất cả đều màu xám — học sinh phải đọc nội dung, không nhìn màu mà chơi!
   el.style.cssText = `
     position:absolute; width:88%; left:6%; top:-90px;
     height:72px; border-radius:12px; display:flex; align-items:center; justify-content:center;
     color:#fff; font-weight:700; font-size:12px; text-align:center; padding:6px; box-sizing:border-box;
     cursor:pointer; user-select:none;
-    background:${isCorrect ? "linear-gradient(135deg,#3b82f6,#1d4ed8)" : "linear-gradient(135deg,#ef4444,#b91c1c)"};
+    background:linear-gradient(135deg,#475569,#334155);
     box-shadow:0 4px 12px rgba(0,0,0,0.4);
+    border:2px solid rgba(255,255,255,0.1);
   `;
 
   const colEl = document.getElementById(`rCol${targetCol}`);
@@ -834,14 +836,16 @@ function startDefenseGame() {
       if (e.data.weakness === type && e.progress > maxProg) { maxProg = e.progress; target = e; }
     }
     if (target) {
+      // Lưu DOM element của địch trước khi xóa khỏi mảng
+      const enemyEl = target.domEl || null;
       target.dead = true;
       gameState.score += 15;
       updateGameHeader();
-      spawnShieldEffect(type, target.angle, shieldIcons[type].icon);
+      spawnShieldEffect(type, target.angle, shieldIcons[type].icon, enemyEl);
     } else {
       spawnMissEffect();
     }
-    renderDefenseGame();
+    // Không gọi renderDefenseGame ở đây ngay, để animation chạy xong rồi loop sẽ xóa
   };
 
   document.getElementById("btn-kinhlup").onclick  = () => handleShield("kinhlup");
@@ -852,30 +856,51 @@ function startDefenseGame() {
   gameLoopId = requestAnimationFrame(defenseLoop);
 }
 
-// Hiệu ứng khiên bắn ra từ túi tiền theo hướng cám dỗ
-function spawnShieldEffect(type, angle, icon) {
+// Hiệu ứng khiên: bay ra gặp địch, địch bị đẩy lùi và biến mất
+function spawnShieldEffect(type, angle, icon, enemyEl) {
   const arena = document.getElementById("defenseArena");
   if (!arena) return;
-  const eff = document.createElement("div");
-  eff.textContent = icon;
-  eff.style.cssText = `
-    position:absolute; left:50%; top:50%; font-size:28px;
-    transform:translate(-50%,-50%) scale(0.2);
-    opacity:1; z-index:20; pointer-events:none;
-    transition:transform 0.45s cubic-bezier(0.22,0.61,0.36,1), opacity 0.45s ease;
-  `;
-  arena.appendChild(eff);
-  // Bắn theo hướng angle ra vùng ngoài
-  const dist = 110;
-  const tx = Math.cos(angle) * dist;
-  const ty = Math.sin(angle) * dist;
-  setTimeout(() => {
-    eff.style.transform = `translate(calc(-50% + ${tx}px), calc(-50% + ${ty}px)) scale(1.6)`;
-    eff.style.opacity   = "0";
-  }, 20);
-  setTimeout(() => eff.remove(), 500);
 
-  // Flash vàng xanh trên wallet
+  // 1. Tạo biểu tượng khiên bay ra từ túi tiền
+  const shield = document.createElement("div");
+  shield.textContent = icon;
+  const dist = 110; // khoảng cách bay ra
+  const finalX = Math.cos(angle) * dist;
+  const finalY = Math.sin(angle) * dist;
+  shield.style.cssText = `
+    position:absolute; left:50%; top:50%; font-size:32px; z-index:30;
+    transform:translate(-50%,-50%) scale(0.3);
+    opacity:1; pointer-events:none;
+    transition:transform 0.3s cubic-bezier(0.22,0.61,0.36,1), opacity 0.15s ease;
+  `;
+  arena.appendChild(shield);
+
+  // Giai đoạn 1: Khiên bay đến vị trí địch (300ms)
+  setTimeout(() => {
+    shield.style.transform = `translate(calc(-50% + ${finalX}px), calc(-50% + ${finalY}px)) scale(1.4)`;
+  }, 20);
+
+  // Giai đoạn 2: Vụ chạm + hiệu ứng đẩy lùi enemy (sau 300ms)
+  setTimeout(() => {
+    // Flash va chạm
+    shield.style.transition = "transform 0.2s ease, opacity 0.3s ease";
+    shield.style.transform  = `translate(calc(-50% + ${finalX}px), calc(-50% + ${finalY}px)) scale(2.0)`;
+    shield.style.opacity    = "0";
+
+    // Enemy bị đẩy ngược ra ngoài màn hình theo cùng hướng angle
+    if (enemyEl && enemyEl.parentNode) {
+      const pushX = Math.cos(angle) * 140;
+      const pushY = Math.sin(angle) * 140;
+      enemyEl.style.transition = "transform 0.4s cubic-bezier(0.36,0.07,0.19,0.97), opacity 0.4s ease";
+      enemyEl.style.transform  = `translate(calc(-50% + ${pushX}px), calc(-50% + ${pushY}px)) scale(0) rotate(${angle*60}deg)`;
+      enemyEl.style.opacity    = "0";
+      setTimeout(() => enemyEl.remove(), 420);
+    }
+  }, 300);
+
+  setTimeout(() => shield.remove(), 550);
+
+  // Flash xanh lá trên wallet
   const wallet = document.getElementById("walletBase");
   if (wallet) {
     wallet.style.boxShadow = "0 0 32px #22c55e, 0 0 64px #22c55e";
@@ -949,28 +974,44 @@ function renderDefenseGame() {
   const arena = document.getElementById("defenseArena");
   if (!arena) return;
 
-  // Xóa enemy cũ, giữ walletBase
-  Array.from(arena.children).forEach(c => { if (c.id !== "walletBase") c.remove(); });
+  // Chỉ xóa DOM của enemy đã biến mất hoặc không còn trong gameState
+  // Để kích hoạt animation, ta render tăng dần thay vì xóa rồi tạo lại
+  const activeIds = new Set(gameState.enemies.map(e => e.id));
+  Array.from(arena.querySelectorAll(".enemyEl")).forEach(el => {
+    if (!activeIds.has(el.dataset.id)) {
+      // Giữ lại những enemy đố sẩp bị animation đẩy lùi (dead nhưng có transition)
+      if (!el.dataset.dying) el.remove();
+    }
+  });
 
   gameState.enemies.forEach(e => {
-    const el = document.createElement("div");
-    const radius = 45 * (1 - e.progress / 100); // 45% → 0%
+    if (e.dead) return; // Bỏ qua enemy đả dead, animation sẽ tự xóa
+    let el = arena.querySelector(`.enemyEl[data-id="${e.id}"]`);
+    if (!el) {
+      el = document.createElement("div");
+      el.className = "enemyEl";
+      el.dataset.id = e.id;
+      const colors = { sale:"#f97316", fomo:"#ef4444", peer:"#8b5cf6", impulse:"#ec4899" };
+      el.innerHTML = `
+        <div style="font-size:22px;filter:drop-shadow(0 0 6px ${colors[e.data.type]});">${e.data.icon}</div>
+        <div style="font-size:9px;color:#fff;background:rgba(0,0,0,0.6);padding:2px 5px;border-radius:4px;white-space:nowrap;margin-top:2px;">${e.data.label}</div>
+      `;
+      el.style.cssText = `
+        position:absolute;
+        display:flex; flex-direction:column; align-items:center;
+        filter:drop-shadow(0 0 4px ${colors[e.data.type]});
+        transition:left 0.1s linear, top 0.1s linear;
+      `;
+      arena.appendChild(el);
+      e.domEl = el; // Lưu tham chiếu DOM
+    }
+
+    const radius = 45 * (1 - e.progress / 100);
     const x = 50 + radius * Math.cos(e.angle);
     const y = 50 + radius * Math.sin(e.angle);
-
-    // Màu cám dỗ theo loại
-    const colors = { sale:"#f97316", fomo:"#ef4444", peer:"#8b5cf6", impulse:"#ec4899" };
-    el.innerHTML = `
-      <div style="font-size:22px;filter:drop-shadow(0 0 6px ${colors[e.data.type]});">${e.data.icon}</div>
-      <div style="font-size:9px;color:#fff;background:rgba(0,0,0,0.6);padding:2px 5px;border-radius:4px;white-space:nowrap;margin-top:2px;">${e.data.label}</div>
-    `;
-    el.style.cssText = `
-      position:absolute; left:${x}%; top:${y}%;
-      transform:translate(-50%,-50%);
-      display:flex; flex-direction:column; align-items:center;
-      filter:drop-shadow(0 0 4px ${colors[e.data.type]});
-    `;
-    arena.appendChild(el);
+    el.style.left      = `${x}%`;
+    el.style.top       = `${y}%`;
+    el.style.transform = "translate(-50%,-50%)";
   });
 }
 
