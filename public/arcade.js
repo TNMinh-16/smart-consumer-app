@@ -23,7 +23,25 @@ function initArcade() {
   });
   
   exitGameBtn.addEventListener("click", () => {
-    endGameContext();
+    if (!document.getElementById("gameIntroOverlay").hidden) {
+      endGameContext();
+      return;
+    }
+    
+    if (gameState.active || document.getElementById("gameOverlay").hidden) {
+      const wasActive = gameState.active;
+      gameState.active = false;
+      showConfirmOverlay("Tạm dừng", "Em muốn thoát thử thách này chứ?", "Thoát", "Tiếp tục chơi", () => {
+        endGameContext();
+      }, () => {
+        if (wasActive) {
+          gameState.active = true;
+          gameState.lastTime = performance.now();
+        }
+      });
+    } else {
+      endGameContext();
+    }
   });
   
   updateArcadeUI();
@@ -137,6 +155,29 @@ function showOverlay(title, text, btnText, onAction, btnClass="primary") {
   gameOverlay.hidden = false;
 }
 
+function showConfirmOverlay(title, text, confirmBtnText, cancelBtnText, onConfirm, onCancel) {
+  gameState.active = false;
+  document.getElementById("overlayTitle").textContent = title;
+  document.getElementById("overlayText").textContent = text;
+  const actions = document.getElementById("overlayActions");
+  actions.innerHTML = `
+    <button class="ghost" id="overlayCancelBtn">${cancelBtnText}</button>
+    <button class="primary" id="overlayConfirmBtn">${confirmBtnText}</button>
+  `;
+  
+  actions.querySelector("#overlayCancelBtn").addEventListener("click", () => {
+    gameOverlay.hidden = true;
+    if (onCancel) onCancel();
+  });
+  
+  actions.querySelector("#overlayConfirmBtn").addEventListener("click", () => {
+    gameOverlay.hidden = true;
+    if (onConfirm) onConfirm();
+  });
+  
+  gameOverlay.hidden = false;
+}
+
 function stopGameLoop() {
   if (gameLoopId) cancelAnimationFrame(gameLoopId);
   domGame.innerHTML = "";
@@ -172,12 +213,16 @@ function gameOver(reason) {
       if (stars === 3) msg = "Em biết ưu tiên nhu cầu và né áp lực mua sắm.";
       else if (stars === 2) msg = "Em đã nhận ra nhiều cạm bẫy; thử chú ý hơn đến các khoản mua theo cảm xúc.";
       else msg = "Hãy dừng 10 giây trước khi quyết định mua.";
+      msg += " Ghi nhớ: Ưu tiên 'Nhu cầu' trước, cân nhắc 'Mong muốn' sau!";
     } else if (gameState.gameId === 2) {
       msg = "Phát hiện dấu hiệu rủi ro giúp em: Tiết kiệm tiền, bảo vệ sức khỏe và quyền lợi!";
+      msg += " Ghi nhớ: Luôn kiểm tra nguồn gốc và chính sách đổi trả.";
     } else if (gameState.gameId === 3) {
       msg = "Tuyệt vời, em đã nhớ được chuỗi logic mua sắm thông minh!";
+      msg += " Ghi nhớ: Xác định nhu cầu → Tìm hiểu → So sánh → Cân nhắc chi trả.";
     } else if (gameState.gameId === 4) {
       msg = "Em đã dùng công cụ hợp lý để chống lại các cám dỗ tiêu dùng.";
+      msg += " Ghi nhớ: Hãy chờ 24h trước khi mua một món đồ không có trong kế hoạch.";
     }
   }
   
@@ -199,7 +244,7 @@ function startCartGame() {
   gameCanvas.hidden = false;
   
   // Game Setup
-  gameState.cart = { x: gameCanvas.width / 2, width: 80, height: 40 };
+  gameState.cart = { x: gameCanvas.width / 2, width: 110, height: 40 };
   gameState.budget = 500000;
   gameState.needs = [
     { type: 'Gạo', icon: '🍚', count: 2, collected: 0, price: 100000 },
@@ -207,8 +252,9 @@ function startCartGame() {
     { type: 'Sách', icon: '📚', count: 2, collected: 0, price: 40000 }
   ];
   gameState.items = [];
-  gameState.nextSpawn = 1;
+  gameState.nextSpawn = 2.0;
   gameState.speed = 150;
+  gameState.firstMistakeMade = false;
   gameState.floatingTexts = [];
   
   // Mouse / Touch controls
@@ -284,8 +330,14 @@ function updateCartGame(dt) {
       if (Math.abs(item.x - cart.x) < cart.width / 2 + 15) {
         // Collided!
         if (item.data.isWant) {
-          gameState.budget -= item.data.price;
-          gameState.floatingTexts.push({ x: item.x, y: item.y, text: "-" + item.data.price / 1000 + "k", color: "#ef4444", age: 0 });
+          if (!gameState.firstMistakeMade) {
+            gameState.budget -= item.data.price / 2;
+            gameState.floatingTexts.push({ x: item.x, y: item.y, text: "Đây là mong muốn!", color: "#f59e0b", age: 0 });
+            gameState.firstMistakeMade = true;
+          } else {
+            gameState.budget -= item.data.price;
+            gameState.floatingTexts.push({ x: item.x, y: item.y, text: "-" + item.data.price / 1000 + "k", color: "#ef4444", age: 0 });
+          }
         } else {
           gameState.budget -= item.data.price;
           const needRef = gameState.needs.find(n => n.type === item.data.type);
@@ -373,7 +425,7 @@ function drawCartGame() {
 // ----------------------------------------------------
 function startSlicerGame() {
   gameCanvas.hidden = false;
-  gameState.nextSpawn = 1;
+  gameState.nextSpawn = 2.0;
   gameState.combo = 0;
   gameState.slowMo = 1;
   gameState.cards = [];
@@ -513,7 +565,7 @@ function startRhythmGame() {
   gameState.currentStep = 0;
   gameState.tiles = [];
   gameState.speed = 100; // pixels per sec
-  gameState.nextSpawn = 1;
+  gameState.nextSpawn = 2.0;
   gameState.speedMult = 1;
   
   domGame.innerHTML = `
@@ -686,7 +738,7 @@ function startDefenseGame() {
   domGame.hidden = false;
   
   gameState.enemies = [];
-  gameState.nextSpawn = 1;
+  gameState.nextSpawn = 2.0;
   gameState.speed = 10; // percent per sec
   
   gameState.enemyTypes = [

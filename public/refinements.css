@@ -78,3 +78,366 @@ nav{top:0;position:relative;border-bottom:1px solid var(--line)}
 .statusTag.need { background: #e3f5ec; color: #167a54; }
 .statusTag.want { background: #fff1e3; color: #b86211; }
 .moneyText { font-weight: 800; font-family: monospace; font-size: 13px; text-align: right; }
+
+/* Smart Consumer Refinements (Task 6 & 7) */
+.knowledgeSummary {
+  background: #f8fafc;
+  border-radius: 16px;
+  padding: 24px;
+  margin: 24px 0;
+  border: 1px solid #e2e8f0;
+}
+.knowledgeSummary h3 {
+  margin-top: 0;
+  color: #1e293b;
+  text-align: center;
+  margin-bottom: 20px;
+}
+.kCards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 16px;
+}
+.kCard {
+  background: #fff;
+  padding: 16px;
+  border-radius: 12px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+}
+.kIcon {
+  font-size: 24px;
+  margin-bottom: 8px;
+}
+.kCard h4 {
+  margin: 0 0 8px 0;
+  color: #3b82f6;
+}
+.kCard p {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.5;
+  color: #475569;
+}
+
+/* 7-Day Challenge Accordion & Responsive */
+.dayHeaderCell {
+  background: #f1f5f9;
+  cursor: pointer;
+  padding: 16px !important;
+  border-bottom: 2px solid #e2e8f0;
+}
+.dayHeaderRow:hover .dayHeaderCell {
+  background: #e2e8f0;
+}
+.dayHeaderContent {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.dayBadge {
+  font-size: 11px;
+  font-weight: 700;
+  color: #3b82f6;
+  letter-spacing: 0.5px;
+  display: block;
+  margin-bottom: 4px;
+}
+.dayName {
+  font-size: 16px;
+  color: #1e293b;
+}
+.dayHeaderRight {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+.toggleIcon {
+  font-size: 12px;
+  color: #64748b;
+}
+.dayAddRow td {
+  text-align: center;
+  padding: 12px;
+  background: #f8fafc;
+}
+
+@media (max-width: 768px) {
+  .journalTable, .journalTable tbody, .journalTable tr, .journalTable td {
+    display: block;
+    width: 100%;
+  }
+  .journalTable thead {
+    display: none;
+  }
+  .expenseSubrow {
+    border-bottom: 2px solid #e2e8f0;
+    padding: 16px;
+    background: #fff;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .expenseSubrow td {
+    border: none;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .expenseSubrow td::before {
+    content: attr(data-label);
+    font-size: 11px;
+    font-weight: 700;
+    color: #64748b;
+    text-transform: uppercase;
+  }
+  .deleteCell {
+    align-items: flex-end;
+  }
+}
+
+/* Teacher Overview */
+.teacherOverview {
+  display: flex;
+  gap: 16px;
+  margin-bottom: 24px;
+  background: white;
+  padding: 16px;
+  border-radius: 12px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+.statCard {
+  flex: 1;
+  text-align: center;
+  border-right: 1px solid #e2e8f0;
+}
+.statCard:last-child {
+  border-right: none;
+}
+.statValue {
+  display: block;
+  font-size: 24px;
+  font-weight: 700;
+  color: #3b82f6;
+}
+.statLabel {
+  font-size: 13px;
+  color: #64748b;
+  text-transform: uppercase;
+}
+
+/* Main Area Layout */
+.teacherMainArea {
+  display: flex;
+  gap: 24px;
+  height: calc(100vh - 200px);
+}
+.teacherMainArea .teacherSidebar {
+  width: 350px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+}
+.teacherFilters {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+.filterRow {
+  display: flex;
+  gap: 8px;
+}
+.filterRow select {
+  flex: 1;
+  padding: 8px;
+  border-radius: 6px;
+  border: 1px solid #cbd5e1;
+  font-size: 13px;
+}
+
+/* Feedback UI */
+.teacherFeedbackModule {
+  margin-top: 12px;
+  background: #f8fafc;
+  padding: 16px;
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+}
+.tfHeader {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+.tfHeader button {
+  padding: 6px 12px;
+  border-radius: 6px;
+  border: 1px solid #cbd5e1;
+  background: white;
+  font-size: 13px;
+  cursor: pointer;
+}
+.tfHeader button.active.status-pass {
+  background: #22c55e;
+  color: white;
+  border-color: #22c55e;
+}
+.tfHeader button.active.status-improve {
+  background: #f59e0b;
+  color: white;
+  border-color: #f59e0b;
+}
+.tfHeader button.active.status-discuss {
+  background: #ef4444;
+  color: white;
+  border-color: #ef4444;
+}
+.tfComment {
+  width: 100%;
+  min-height: 60px;
+  padding: 8px;
+  border-radius: 6px;
+  border: 1px solid #cbd5e1;
+  font-family: inherit;
+  font-size: 14px;
+  margin-bottom: 12px;
+  resize: vertical;
+}
+.tfRubric {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+.tfRubric label {
+  font-size: 13px;
+  color: #475569;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Student progress display */
+.studentProgressCards {
+  display: flex;
+  gap: 16px;
+  margin-bottom: 24px;
+}
+.progCard {
+  flex: 1;
+  background: #f1f5f9;
+  padding: 12px;
+  border-radius: 8px;
+  text-align: center;
+}
+.progCard strong {
+  display: block;
+  font-size: 18px;
+  color: #1e293b;
+}
+.progCard span {
+  font-size: 12px;
+  color: #64748b;
+}
+
+/* Journal Reflection */
+.journalReflectionSection {
+  margin-top: 32px;
+  padding: 24px;
+  background: #f0fdf4;
+  border-radius: 12px;
+  border: 1px dashed #22c55e;
+}
+#journalReflectionInput {
+  width: 100%;
+  min-height: 80px;
+  padding: 12px;
+  border-radius: 8px;
+  border: 1px solid #86efac;
+  margin-top: 12px;
+  resize: vertical;
+  font-family: inherit;
+}
+
+/* Student Feedback View */
+.studentFeedbackBox {
+  margin-top: 12px;
+  padding: 12px 16px;
+  background: #eff6ff;
+  border-left: 4px solid #3b82f6;
+  border-radius: 0 8px 8px 0;
+}
+.studentFeedbackBox h5 {
+  margin: 0 0 4px 0;
+  color: #1e3a8a;
+  font-size: 14px;
+}
+.studentFeedbackBox p {
+  margin: 0;
+  color: #1e40af;
+  font-size: 14px;
+}
+.sfStatus {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 700;
+  margin-left: 8px;
+  color: white;
+}
+.status-Đạt { background: #22c55e; }
+.status-Cần\ bổ\ sung { background: #f59e0b; }
+.status-Cần\ trao\ đổi { background: #ef4444; }
+
+/* Status tags for List */
+.studentBadges {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+.statusDot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  margin-right: 4px;
+}
+.statusDot.completed { background: #22c55e; }
+.statusDot.in_progress { background: #3b82f6; }
+.statusDot.not_started { background: #94a3b8; }
+.statusDot.needs_support { background: #ef4444; }
+
+.chartContainer {
+  margin: 16px 0;
+  padding: 16px;
+  background: white;
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+}
+.chartBar {
+  display: flex;
+  height: 24px;
+  border-radius: 12px;
+  overflow: hidden;
+  margin-bottom: 8px;
+}
+.chartSegment.need { background: #3b82f6; }
+.chartSegment.want { background: #f59e0b; }
+.chartLegend {
+  display: flex;
+  justify-content: center;
+  gap: 16px;
+  font-size: 12px;
+}
+.chartLegend span::before {
+  content: '';
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  margin-right: 4px;
+  vertical-align: -2px;
+}
+.chartLegend .need::before { background: #3b82f6; }
+.chartLegend .want::before { background: #f59e0b; }

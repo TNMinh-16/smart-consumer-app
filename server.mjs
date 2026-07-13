@@ -52,7 +52,20 @@ async function initDB() {
       sit_set_json TEXT NOT NULL DEFAULT '[]',
       ad_position INTEGER NOT NULL DEFAULT 0 CHECK (ad_position BETWEEN 0 AND 5),
       sit_position INTEGER NOT NULL DEFAULT 0 CHECK (sit_position BETWEEN 0 AND 5),
+      journal_reflection TEXT NOT NULL DEFAULT '',
       updated_at TEXT NOT NULL
+    );
+    ALTER TABLE learning_state ADD COLUMN IF NOT EXISTS journal_reflection TEXT NOT NULL DEFAULT '';
+    
+    CREATE TABLE IF NOT EXISTS teacher_feedbacks (
+      student_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      activity_type VARCHAR(50) NOT NULL,
+      question_index INTEGER NOT NULL,
+      status VARCHAR(50) NOT NULL DEFAULT 'Đạt',
+      comment TEXT NOT NULL DEFAULT '',
+      rubric TEXT NOT NULL DEFAULT '',
+      updated_at TEXT NOT NULL,
+      PRIMARY KEY (student_id, activity_type, question_index)
     );
     CREATE TABLE IF NOT EXISTS activity_responses (
       user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -192,7 +205,8 @@ function cleanLearningState(value) {
     sitPosition: numberInRange(raw.sitPosition, 0, 5),
     adResponses: responses(raw.adResponses),
     sitResponses: responses(raw.sitResponses),
-    journal: journal(raw.journal)
+    journal: journal(raw.journal),
+    journalReflection: String(raw.journalReflection ?? "").trim().slice(0, 1000)
   };
 }
 
@@ -243,10 +257,19 @@ async function getLearningState(userId) {
     sitPosition: saved.sit_position,
     adResponses: {},
     sitResponses: {},
-    journal: defaultJournal()
+    journal: defaultJournal(),
+    journalReflection: saved.journal_reflection || "",
+    feedbacks: {}
   };
   const answers = (await pool.query("SELECT activity_type, question_index, response FROM activity_responses WHERE user_id = $1", [userId])).rows;
   for (const answer of answers) state[answer.activity_type === "ad" ? "adResponses" : "sitResponses"][answer.question_index] = answer.response;
+  
+  const feedbacks = (await pool.query("SELECT activity_type, question_index, status, comment, rubric FROM teacher_feedbacks WHERE student_id = $1", [userId])).rows;
+  for (const f of feedbacks) {
+    const key = `${f.activity_type}_${f.question_index}`;
+    state.feedbacks[key] = { status: f.status, comment: f.comment, rubric: f.rubric };
+  }
+  
   const expenses = (await pool.query("SELECT day_index, item, amount, category, note FROM expense_entries WHERE user_id = $1 ORDER BY day_index, entry_position", [userId])).rows;
   const journalEntries = Array.from({ length: 7 }, () => []);
   for (const expense of expenses) journalEntries[expense.day_index].push({ item: expense.item, amount: String(expense.amount || ""), kind: expense.category, note: expense.note });
@@ -261,8 +284,8 @@ async function saveLearningState(userId, rawState) {
   try {
     await client.query("BEGIN");
     await client.query(`
-      INSERT INTO learning_state (user_id, active_step, completed_json, ad_set_json, sit_set_json, ad_position, sit_position, updated_at)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+      INSERT INTO learning_state (user_id, active_step, completed_json, ad_set_json, sit_set_json, ad_position, sit_position, journal_reflection, updated_at)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
       ON CONFLICT(user_id) DO UPDATE SET
         active_step = EXCLUDED.active_step,
         completed_json = EXCLUDED.completed_json,
@@ -270,8 +293,9 @@ async function saveLearningState(userId, rawState) {
         sit_set_json = EXCLUDED.sit_set_json,
         ad_position = EXCLUDED.ad_position,
         sit_position = EXCLUDED.sit_position,
+        journal_reflection = EXCLUDED.journal_reflection,
         updated_at = EXCLUDED.updated_at
-    `, [userId, state.active, JSON.stringify(state.completed), JSON.stringify(state.adSet), JSON.stringify(state.sitSet), state.adPosition, state.sitPosition, updatedAt]);
+    `, [userId, state.active, JSON.stringify(state.completed), JSON.stringify(state.adSet), JSON.stringify(state.sitSet), state.adPosition, state.sitPosition, state.journalReflection, updatedAt]);
     
     await client.query("DELETE FROM activity_responses WHERE user_id = $1", [userId]);
     for (const [questionIndex, answer] of Object.entries(state.adResponses)) {
@@ -405,6 +429,31 @@ async function handleApi(request, response, url) {
     }));
     return json(response, 200, { students: parsedStudents });
   }
+  const feedbackMatch = pathname.match(/^\/api\/teacher\/students\/(\d+)\/feedback$/);
+  if (feedbackMatch && request.method === "POST") {
+    if (!(await teacherRequired(request, response))) return;
+    const studentId = Number(feedbackMatch[1]);
+    const data = await readJson(request);
+    const activityType = String(data.activityType || "ad");
+    const questionIndex = Number(data.questionIndex || 0);
+    const status = String(data.status || "Đạt");
+    const comment = String(data.comment || "").slice(0, 1000);
+    const rubric = String(data.rubric || "").slice(0, 1000);
+    const updatedAt = now();
+    
+    await pool.query(`
+      INSERT INTO teacher_feedbacks (student_id, activity_type, question_index, status, comment, rubric, updated_at)
+      VALUES ($1, $2, $3, $4, $5, $6, $7)
+      ON CONFLICT(student_id, activity_type, question_index) DO UPDATE SET
+        status = EXCLUDED.status,
+        comment = EXCLUDED.comment,
+        rubric = EXCLUDED.rubric,
+        updated_at = EXCLUDED.updated_at
+    `, [studentId, activityType, questionIndex, status, comment, rubric, updatedAt]);
+    
+    return json(response, 200, { ok: true });
+  }
+
   const studentMatch = pathname.match(/^\/api\/teacher\/students\/(\d+)$/);
   if (studentMatch && request.method === "GET") {
     if (!(await teacherRequired(request, response))) return;

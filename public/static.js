@@ -1,6 +1,6 @@
 const steps = ["Trang chủ", "Mục tiêu", "Bài học", "Quảng cáo", "Tình huống", "Vận dụng"];
 const QUESTION_COUNT = 5;
-const MIN_RESPONSE_LENGTH = 12;
+const MIN_RESPONSE_LENGTH = 20;
 
 const adBank = [
   { title: "Trà sữa đồng giá 9.000đ", copy: "Đặt ngay trong 5 phút — số lượng có hạn!", q: "Trước khi đặt mua, em sẽ kiểm tra những thông tin nào? Vì sao?", hint: "Gợi ý: tên cửa hàng, đánh giá, phí giao hàng, nguyên liệu và nhu cầu thật của em." },
@@ -73,16 +73,27 @@ function ensureSet(type) {
 
 function setupNav() {
   const nav = $("#nav");
-  nav.innerHTML = steps.map((label, index) => `<button data-go="${index}"><i>${state.completed.includes(index) ? "✓" : index + 1}</i>${label}</button>`).join("");
+  nav.innerHTML = steps.map((label, index) => `<button data-go="${index}"><i>${state.completed.includes(index) ? "✓" : index + 1}</i><span class="navLabel">${label}</span><small class="navStatus"></small></button>`).join("");
   nav.querySelectorAll("[data-go]").forEach(button => button.addEventListener("click", () => go(Number(button.dataset.go))));
   updateNav();
 }
 
 function updateNav() {
   document.querySelectorAll("#nav button").forEach((button, index) => {
-    button.classList.toggle("active", index === state.active);
-    button.classList.toggle("done", state.completed.includes(index));
-    button.querySelector("i").textContent = state.completed.includes(index) ? "✓" : index + 1;
+    const isCompleted = state.completed.includes(index);
+    const isActive = index === state.active;
+    
+    button.classList.toggle("active", isActive);
+    button.classList.toggle("done", isCompleted);
+    
+    button.querySelector("i").textContent = isCompleted ? "✓" : index + 1;
+    
+    const statusEl = button.querySelector(".navStatus");
+    if (statusEl) {
+      if (isActive && !isCompleted) statusEl.textContent = " • Đang học";
+      else if (isCompleted) statusEl.textContent = "";
+      else statusEl.textContent = "";
+    }
   });
 }
 
@@ -147,7 +158,7 @@ function renderOpenActivity(type) {
   const context = isAd
     ? `<aside class="activityContext adCreative"><span class="contextLabel">QUẢNG CÁO GIẢ LẬP</span><div class="contextIcon">!</div><h3>${question.title}</h3><p>${question.copy}</p><div class="fakeCta">ƯU ĐÃI CÓ HẠN</div><div class="contextFoot">⚠ Hãy dừng lại và kiểm tra trước khi quyết định mua.</div></aside>`
     : `<aside class="activityContext situationCreative"><span class="contextLabel">TÌNH HUỐNG THỰC TẾ</span><div class="contextIcon">?</div><h3>${question.title}</h3><p>${question.copy}</p><div class="thinkingPrompt">💭 Nếu là nhân vật trong tình huống này, em sẽ làm gì?</div></aside>`;
-  root.innerHTML = `<div class="openActivity ${modeClass}">${context}<div class="openQuestion"><div class="responseTop"><div><span class="taskLabel">NHIỆM VỤ CỦA EM</span><h3>${question.q}</h3></div><div class="progressDots" aria-label="Tiến độ câu hỏi">${Array.from({ length: QUESTION_COUNT }, (_, index) => `<i class="${index < position ? "done" : index === position ? "current" : ""}"></i>`).join("")}</div></div><div class="hintWrap" style="margin: 16px 0;"><button class="ghost hintToggleBtn" type="button" style="min-height:36px; padding: 6px 12px; font-size: 12px; border-radius: 8px;">💡 Cần gợi ý?</button><div class="hintBox" hidden style="margin-top: 10px;"><b>Gợi ý</b><span>${question.hint}</span></div></div><label class="responseLabel">Trả lời của em<textarea id="openResponse" placeholder="Viết suy nghĩ và cách xử lí của em ở đây...">${escapeHtml(response)}</textarea><span id="responseCount">${response.trim().length} ký tự</span></label><div class="openActions"><button class="ghost" id="previousOpen" ${position === 0 ? "disabled" : ""}>← Câu trước</button><button class="primary" id="saveOpenAnswer" ${response.trim().length < MIN_RESPONSE_LENGTH ? "disabled" : ""}>${position === QUESTION_COUNT - 1 ? "Lưu câu trả lời" : "Lưu & câu tiếp theo →"}</button></div></div></div>`;
+  root.innerHTML = `<div class="openActivity ${modeClass}">${context}<div class="openQuestion"><div class="responseTop"><div><span class="taskLabel">NHIỆM VỤ CỦA EM</span><h3>${question.q}</h3></div><div class="progressDots" aria-label="Tiến độ câu hỏi">${Array.from({ length: QUESTION_COUNT }, (_, index) => `<i class="${index < position ? "done" : index === position ? "current" : ""}"></i>`).join("")}</div></div><div class="hintWrap" style="margin: 16px 0;"><button class="ghost hintToggleBtn" type="button" style="min-height:36px; padding: 6px 12px; font-size: 12px; border-radius: 8px;">💡 Cần gợi ý?</button><div class="hintBox" hidden style="margin-top: 10px;"><b>Gợi ý</b><span>${question.hint}</span></div></div><label class="responseLabel">Trả lời của em<textarea id="openResponse" placeholder="Viết suy nghĩ và cách xử lí của em ở đây...">${escapeHtml(response)}</textarea><span id="responseCount">${response.trim().length} ký tự</span></label><div class="openActions"><button class="ghost" id="previousOpen" ${position === 0 ? "disabled" : ""}>← Câu trước</button><div><button class="primary" id="saveOpenAnswer" ${response.trim().length < MIN_RESPONSE_LENGTH ? "disabled" : ""}>${position === QUESTION_COUNT - 1 ? "Lưu câu trả lời" : "Lưu & câu tiếp theo →"}</button><br><small id="saveHint" style="color:#ef4444; font-size:12px; display:${response.trim().length < MIN_RESPONSE_LENGTH ? 'block' : 'none'}; margin-top:4px;">Hãy viết ít nhất ${MIN_RESPONSE_LENGTH} ký tự để tiếp tục.</small></div></div></div></div>`;
   const textarea = root.querySelector("#openResponse");
   const saveButton = root.querySelector("#saveOpenAnswer");
   const previousButton = root.querySelector("#previousOpen");
@@ -169,6 +180,8 @@ function renderOpenActivity(type) {
     const count = textarea.value.trim().length;
     responseCount.textContent = `${count} ký tự${count < MIN_RESPONSE_LENGTH ? ` · cần ít nhất ${MIN_RESPONSE_LENGTH}` : ""}`;
     saveButton.disabled = count < MIN_RESPONSE_LENGTH;
+    const saveHint = root.querySelector("#saveHint");
+    if (saveHint) saveHint.style.display = count < MIN_RESPONSE_LENGTH ? 'block' : 'none';
   });
   previousButton.addEventListener("click", () => {
     state[responseKey] = { ...state[responseKey], [questionIndex]: textarea.value.trim() };
@@ -180,6 +193,29 @@ function renderOpenActivity(type) {
     state[responseKey] = { ...state[responseKey], [questionIndex]: textarea.value.trim() };
     state[positionKey] = position + 1;
     save();
+    
+    // Show positive feedback
+    const toast = document.createElement("div");
+    toast.textContent = "✓ Đã lưu câu trả lời!";
+    toast.style.position = "fixed";
+    toast.style.bottom = "20px";
+    toast.style.left = "50%";
+    toast.style.transform = "translateX(-50%)";
+    toast.style.background = "#22c55e";
+    toast.style.color = "white";
+    toast.style.padding = "10px 20px";
+    toast.style.borderRadius = "20px";
+    toast.style.fontWeight = "bold";
+    toast.style.zIndex = "9999";
+    toast.style.boxShadow = "0 4px 6px rgba(0,0,0,0.1)";
+    toast.style.transition = "opacity 0.3s ease";
+    document.body.appendChild(toast);
+    
+    setTimeout(() => {
+      toast.style.opacity = "0";
+      setTimeout(() => toast.remove(), 300);
+    }, 2000);
+    
     renderOpenActivity(type);
   });
 }
@@ -204,42 +240,158 @@ function renderJournal() {
     return;
   }
 
-  root.innerHTML = days.map((day, dayIndex) => {
+  // Define "today" roughly based on state or actual Date. Let's just default to Day 0 (Thứ 2) if no entries, or the last day with entries.
+  // We'll calculate a default expanded day.
+  let expandedDay = 0;
+  for (let i = days.length - 1; i >= 0; i--) {
+    if (state.journal[i].some(e => e.item || Number(e.amount) || e.note)) {
+      expandedDay = i;
+      break;
+    }
+  }
+  // To avoid resetting expansion state on re-render, we can store it in a global or just rely on a data attribute.
+  // For simplicity, let's inject a toggle mechanism. We'll add 'data-expanded' to the dayGroup.
+
+  const html = days.map((day, dayIndex) => {
     const entries = state.journal[dayIndex];
     const subtotal = entries.reduce((total, entry) => total + (Number(entry.amount) || 0), 0);
-    return entries.map((entry, entryIndex) => `<tr class="expenseSubrow" data-day="${dayIndex}" data-entry="${entryIndex}">${entryIndex === 0 ? `<th class="dayCell" scope="rowgroup" rowspan="${entries.length}"><span>NGÀY ${dayIndex + 1}/7</span><b>${day}</b><strong class="dayTotal-${dayIndex}">${money(subtotal)}</strong><button type="button" data-add="${dayIndex}">＋ Khoản chi</button></th>` : ""}<td><input data-field="item" value="${escapeHtml(entry.item)}" placeholder="Ví dụ: mua bút, trà sữa..."></td><td class="amountCell"><input data-field="amount" type="number" min="0" inputmode="numeric" value="${escapeHtml(entry.amount)}" placeholder="0"></td><td class="kindCell"><select data-field="kind"><option ${entry.kind === "Nhu cầu" ? "selected" : ""}>Nhu cầu</option><option ${entry.kind === "Mong muốn" ? "selected" : ""}>Mong muốn</option></select></td><td class="expenseNote"><input data-field="note" value="${escapeHtml(entry.note)}" placeholder="Ghi nhận xét ngắn"></td><td class="deleteCell"><button class="removeExpense" type="button" data-remove="${entryIndex}" aria-label="Xóa khoản chi">×</button></td></tr>`).join("");
+    // Use an explicit dayHeader row to allow toggling
+    return `
+      <tr class="dayHeaderRow" data-toggle-day="${dayIndex}">
+        <td colspan="6" class="dayHeaderCell">
+          <div class="dayHeaderContent">
+            <div>
+              <span class="dayBadge">NGÀY ${dayIndex + 1}/7</span>
+              <b class="dayName">${day}</b>
+            </div>
+            <div class="dayHeaderRight">
+              <strong class="dayTotal-${dayIndex}">${money(subtotal)}</strong>
+              <span class="toggleIcon">▼</span>
+            </div>
+          </div>
+        </td>
+      </tr>
+      ${entries.map((entry, entryIndex) => {
+        const hasData = entry.item || Number(entry.amount) || entry.note;
+        return `<tr class="expenseSubrow dayRow-${dayIndex}" data-day="${dayIndex}" data-entry="${entryIndex}">
+          <td class="mobileLabel" data-label="Khoản chi">
+            <input data-field="item" value="${escapeHtml(entry.item)}" placeholder="Ví dụ: mua bút, trà sữa...">
+          </td>
+          <td class="amountCell mobileLabel" data-label="Số tiền">
+            <input data-field="amount" type="number" min="0" inputmode="numeric" value="${escapeHtml(entry.amount)}" placeholder="0">
+          </td>
+          <td class="kindCell mobileLabel" data-label="Phân loại">
+            <select data-field="kind">
+              <option ${entry.kind === "Nhu cầu" ? "selected" : ""}>Nhu cầu</option>
+              <option ${entry.kind === "Mong muốn" ? "selected" : ""}>Mong muốn</option>
+            </select>
+          </td>
+          <td class="expenseNote mobileLabel" data-label="Nhận xét">
+            <input data-field="note" value="${escapeHtml(entry.note)}" placeholder="Ghi nhận xét ngắn">
+          </td>
+          <td class="deleteCell">
+            ${hasData ? `<button class="removeExpense" type="button" data-remove="${entryIndex}" aria-label="Xóa khoản chi">×</button>` : `<span class="emptyDeleteSlot"></span>`}
+          </td>
+        </tr>`;
+      }).join("")}
+      <tr class="dayAddRow dayRow-${dayIndex}" data-day="${dayIndex}">
+        <td colspan="6"><button type="button" class="ghost" data-add="${dayIndex}">＋ Thêm khoản chi</button></td>
+      </tr>
+    `;
   }).join("");
+  
+  root.innerHTML = html;
+
+  // Toggle Logic
+  root.querySelectorAll(".dayHeaderRow").forEach(row => {
+    row.addEventListener("click", () => {
+      const dayIndex = row.dataset.toggleDay;
+      const isExpanded = row.classList.toggle("expanded");
+      root.querySelectorAll(`.dayRow-${dayIndex}`).forEach(el => {
+        el.style.display = isExpanded ? (window.innerWidth <= 768 ? "flex" : "table-row") : "none";
+      });
+      row.querySelector(".toggleIcon").textContent = isExpanded ? "▲" : "▼";
+    });
+  });
+
+  // Initialize expanded state
+  root.querySelectorAll(".dayHeaderRow").forEach((row, idx) => {
+    // Keep 'Today' or last active day expanded, collapse others
+    if (idx === window.lastExpandedDay || (window.lastExpandedDay === undefined && idx === expandedDay)) {
+      row.classList.add("expanded");
+      row.querySelector(".toggleIcon").textContent = "▲";
+    } else {
+      root.querySelectorAll(`.dayRow-${idx}`).forEach(el => el.style.display = "none");
+    }
+  });
 
   const updateExpense = control => {
     const row = control.closest("tr");
     const dayIndex = Number(row.dataset.day);
     const entryIndex = Number(row.dataset.entry);
     state.journal[dayIndex][entryIndex][control.dataset.field] = control.value;
+    
+    // Remember expanded day
+    window.lastExpandedDay = dayIndex;
+    
     save();
     updateJournalSummary();
     const subtotal = state.journal[dayIndex].reduce((total, entry) => total + (Number(entry.amount) || 0), 0);
     const totalCell = root.querySelector(`.dayTotal-${dayIndex}`);
     if (totalCell) totalCell.textContent = money(subtotal);
+    
+    // Re-render to show/hide delete button correctly if data was added
+    const hasData = state.journal[dayIndex][entryIndex].item || Number(state.journal[dayIndex][entryIndex].amount) || state.journal[dayIndex][entryIndex].note;
+    if (hasData && !row.querySelector(".removeExpense")) {
+      renderJournal(); // full re-render is easier to sync DOM
+    }
   };
+
   root.querySelectorAll("[data-field]").forEach(control => {
     control.addEventListener("input", () => updateExpense(control));
     control.addEventListener("change", () => updateExpense(control));
   });
+
   root.querySelectorAll("[data-add]").forEach(button => button.addEventListener("click", () => {
-    state.journal[Number(button.dataset.add)].push(blankExpense());
+    const dayIndex = Number(button.dataset.add);
+    state.journal[dayIndex].push(blankExpense());
+    window.lastExpandedDay = dayIndex;
     save();
     renderJournal();
   }));
+
   root.querySelectorAll("[data-remove]").forEach(button => button.addEventListener("click", () => {
     const row = button.closest("tr");
     const dayIndex = Number(row.dataset.day);
     const entryIndex = Number(button.dataset.remove);
+    window.lastExpandedDay = dayIndex;
     if (state.journal[dayIndex].length === 1) state.journal[dayIndex] = [blankExpense()];
     else state.journal[dayIndex].splice(entryIndex, 1);
     save();
     renderJournal();
   }));
+
   updateJournalSummary();
+  const reflectionInput = $("#journalReflectionInput");
+  if (reflectionInput) {
+    reflectionInput.value = escapeHtml(state.journalReflection || "");
+    reflectionInput.addEventListener("input", () => {
+      state.journalReflection = reflectionInput.value.trim();
+      save();
+    });
+    
+    // Add feedback if exists
+    if (state.feedbacks && state.feedbacks["reflection_0"]) {
+      const fb = state.feedbacks["reflection_0"];
+      if (!$("#reflectionFeedback")) {
+        const fbEl = document.createElement("div");
+        fbEl.id = "reflectionFeedback";
+        fbEl.className = "studentFeedbackBox";
+        fbEl.innerHTML = `<h5>Phản hồi từ Giáo viên <span class="sfStatus status-${escapeHtml(fb.status)}">${escapeHtml(fb.status)}</span></h5><p>${escapeHtml(fb.comment)}</p>`;
+        reflectionInput.parentNode.appendChild(fbEl);
+      }
+    }
+  }
 }
 
 function download(name, text) {
