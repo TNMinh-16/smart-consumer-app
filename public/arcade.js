@@ -11,6 +11,7 @@ const gameViewport = document.getElementById("gameViewport");
 const exitGameBtn = document.getElementById("exitGameBtn");
 const gameCanvas = document.getElementById("gameCanvas");
 const domGame = document.getElementById("domGame");
+
 const gameOverlay = document.getElementById("gameOverlay");
 const gameScoreDisplay = document.getElementById("gameScoreDisplay");
 const gameTimeDisplay = document.getElementById("gameTimeDisplay");
@@ -18,6 +19,13 @@ const gameHeartsDisplay = document.getElementById("gameHeartsDisplay");
 
 // Arcade Setup
 function initArcade() {
+  const checkBtn = document.getElementById("checkLessonBtn");
+  if (checkBtn) {
+    checkBtn.addEventListener("click", () => {
+      document.getElementById("knowledgeSummaryView").hidden = true;
+      document.getElementById("arcadeMenu").hidden = false;
+    });
+  }
   document.querySelectorAll(".arcadeBtn").forEach(btn => {
     btn.addEventListener("click", () => startGame(Number(btn.dataset.game)));
   });
