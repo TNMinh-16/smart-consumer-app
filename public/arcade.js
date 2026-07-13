@@ -1,10 +1,108 @@
 // ARCADE ENGINE — Smart Consumer GDCD 9
-// Viết lại sạch: sửa timer, gameWin, đường chém, 3 làn, hiệu ứng khiên.
+// Phiên bản 3: âm thanh Web Audio, hiệu ứng chém đôi, rung màn hình, animation mượt.
 
 // ─── State ───────────────────────────────────────────────────────────────────
 const arcadeBadges = ["Ví tiền tỉnh táo","Kính lúp kiểm chứng","Bản đồ 6 bước","Lá chắn trước cám dỗ"];
-let currentGame  = null;
-let gameLoopId   = null;
+let currentGame = null;
+let gameLoopId  = null;
+
+// ─── WEB AUDIO ENGINE (không cần file âm thanh ngoài) ───────────────────────
+let audioCtx = null;
+function getAudio() {
+  if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  if (audioCtx.state === 'suspended') audioCtx.resume();
+  return audioCtx;
+}
+
+// Tạo âm thanh tổng hợp
+function playTone(freq, type, duration, volume=0.25, decay=0.6) {
+  try {
+    const ac = getAudio();
+    const osc = ac.createOscillator();
+    const gain = ac.createGain();
+    osc.connect(gain); gain.connect(ac.destination);
+    osc.type = type; osc.frequency.setValueAtTime(freq, ac.currentTime);
+    gain.gain.setValueAtTime(volume, ac.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ac.currentTime + duration);
+    osc.start(ac.currentTime); osc.stop(ac.currentTime + duration);
+  } catch(e) {}
+}
+function playNoise(duration=0.12, volume=0.15) {
+  try {
+    const ac = getAudio();
+    const buf = ac.createBuffer(1, ac.sampleRate * duration, ac.sampleRate);
+    const data = buf.getChannelData(0);
+    for (let i=0; i<data.length; i++) data[i] = Math.random()*2-1;
+    const src = ac.createBufferSource();
+    const gain = ac.createGain();
+    src.buffer = buf; src.connect(gain); gain.connect(ac.destination);
+    gain.gain.setValueAtTime(volume, ac.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ac.currentTime + duration);
+    src.start(); src.stop(ac.currentTime + duration);
+  } catch(e) {}
+}
+
+// Âm thanh theo sự kiện
+const SFX = {
+  collect:  () => { playTone(660, 'sine', 0.15, 0.3);  playTone(880, 'sine', 0.1, 0.2); },
+  wrong:    () => { playTone(150, 'sawtooth', 0.3, 0.2); playNoise(0.15, 0.2); },
+  slice:    () => { playNoise(0.08, 0.25); playTone(440, 'sine', 0.1, 0.15); },
+  sliceWrong:()=>{ playTone(200, 'square', 0.25, 0.2); playNoise(0.2, 0.2); },
+  tap:      () => playTone(523, 'sine', 0.12, 0.25),
+  tapWrong: () => { playTone(250, 'sawtooth', 0.2, 0.2); },
+  shield:   () => { playTone(784,'triangle',0.2,0.3); playTone(1047,'sine',0.15,0.2); },
+  shieldMiss:()=>{ playTone(180,'square',0.18,0.15); },
+  win:      () => {
+    [523,659,784,1047].forEach((f,i) => setTimeout(()=>playTone(f,'sine',0.3,0.35), i*90));
+  },
+  lose:     () => {
+    [392,330,261].forEach((f,i) => setTimeout(()=>playTone(f,'sawtooth',0.3,0.3), i*80));
+  },
+  heartLost:() => { playTone(220,'sawtooth',0.4,0.3); playNoise(0.15, 0.25); },
+  combo:    () => { [880,1047,1319].forEach((f,i)=>setTimeout(()=>playTone(f,'sine',0.18,0.35),i*60)); }
+};
+
+// Nhạc nền (vòng lặp đơn giản bằng Web Audio)
+let bgmNode = null, bgmGain = null;
+function startBGM(gameId) {
+  stopBGM();
+  try {
+    const ac = getAudio();
+    bgmGain = ac.createGain();
+    bgmGain.gain.setValueAtTime(0.06, ac.currentTime);
+    bgmGain.connect(ac.destination);
+
+    const patterns = {
+      1: [261,294,329,349,392,349,329,294],   // Đô trưởng — vui tươi
+      2: [220,246,261,220,196,220,246,261],   // Thứ — hồi hộp
+      3: [392,440,494,523,494,440,392,349],   // Sol trưởng — phấn khởi
+      4: [174,196,220,196,174,164,174,196]    // Tông thấp — căng thẳng
+    };
+    const notes = patterns[gameId] || patterns[1];
+    let idx = 0;
+    const tempo = gameId === 4 ? 0.32 : 0.28;
+
+    function tick() {
+      if (!bgmGain) return;
+      const osc = ac.createOscillator();
+      const g   = ac.createGain();
+      osc.connect(g); g.connect(bgmGain);
+      osc.type = gameId === 2 ? 'triangle' : 'sine';
+      osc.frequency.setValueAtTime(notes[idx % notes.length], ac.currentTime);
+      g.gain.setValueAtTime(0.8, ac.currentTime);
+      g.gain.exponentialRampToValueAtTime(0.001, ac.currentTime + tempo * 0.85);
+      osc.start(ac.currentTime); osc.stop(ac.currentTime + tempo);
+      idx++;
+      bgmNode = setTimeout(tick, tempo * 1000);
+    }
+    tick();
+  } catch(e) {}
+}
+function stopBGM() {
+  if (bgmNode) { clearTimeout(bgmNode); bgmNode = null; }
+  if (bgmGain) { try { bgmGain.disconnect(); } catch(e) {} bgmGain = null; }
+}
+
 
 // ─── DOM refs (chỉ khai báo một lần) ─────────────────────────────────────────
 const arcadeMenu        = document.getElementById("arcadeMenu");
@@ -209,6 +307,7 @@ function startGame(gameId) {
       active:true, entities:[], lastTime: performance.now(), gameId
     };
     updateGameHeader();
+    startBGM(gameId);  // Bắt đầu nhạc nền
     if      (gameId === 1) startCartGame();
     else if (gameId === 2) startSlicerGame();
     else if (gameId === 3) startRhythmGame();
@@ -218,15 +317,13 @@ function startGame(gameId) {
 
 function stopGameLoop() {
   if (gameLoopId) { cancelAnimationFrame(gameLoopId); gameLoopId = null; }
-  // Clean up canvas event listeners
+  stopBGM();
   gameCanvas.onmousemove  = null;
   gameCanvas.ontouchmove  = null;
   gameCanvas.onmousedown  = null;
-  gameCanvas.onmousemove  = null;
   gameCanvas.onmouseup    = null;
   gameCanvas.onmouseleave = null;
   gameCanvas.ontouchstart = null;
-  gameCanvas.ontouchmove  = null;
   gameCanvas.ontouchend   = null;
   domGame.innerHTML = "";
 }
@@ -267,6 +364,7 @@ function gameOver(reason) {
   }
   const currentBest = state.arcade[`g${gameState.gameId}`] || 0;
   if (stars > currentBest) state.arcade[`g${gameState.gameId}`] = stars;
+  if (stars > 0) SFX.win(); else SFX.lose();
   showOverlay(
     stars > 0 ? `Hoàn thành! (${stars} Sao)` : "Thử lại nhé",
     msg,
@@ -275,13 +373,13 @@ function gameOver(reason) {
   );
 }
 
-// gameWin → alias thân thiện
 function gameWin(msg) {
   gameState.active = false;
   stopGameLoop();
   const stars = calculateStars();
   const currentBest = state.arcade[`g${gameState.gameId}`] || 0;
   if (stars > currentBest) state.arcade[`g${gameState.gameId}`] = stars;
+  SFX.win();
   showOverlay(
     `Chiến thắng! (${stars} Sao)`,
     msg || "Xuất sắc! Em đã hoàn thành thử thách.",
@@ -384,6 +482,7 @@ function updateCartGame(dt) {
         const penalty = gameState.firstMistake ? item.data.price : item.data.price / 2;
         gameState.budget -= penalty;
         gameState.firstMistake = true;
+        SFX.wrong();
         gameState.floatingTexts.push({ x:item.x, y:item.y, text:`-${penalty/1000}k Mong muốn!`, color:"#f59e0b", age:0 });
       } else {
         gameState.budget -= item.data.price;
@@ -391,6 +490,7 @@ function updateCartGame(dt) {
         if (ref && ref.collected < ref.count) {
           ref.collected++;
           gameState.score += 10;
+          SFX.collect();
         }
         gameState.floatingTexts.push({ x:item.x, y:item.y, text:`+${item.data.type} ✓`, color:"#22c55e", age:0 });
       }
@@ -503,6 +603,8 @@ function startSlicerGame() {
   gameState.cards      = [];
   gameState.mouse      = { x:0, y:0, active:false };
   gameState.sliceTrail = [];
+  gameState.shakeTime  = 0;
+  gameState.flashTime  = 0;
 
   // Lấy tọa độ chuẩn từ getBoundingClientRect (không dùng offsetX/Y vì bị lệch khi có scroll)
   const getPos = (e) => {
@@ -556,21 +658,39 @@ function slicerLoop(time) {
   if (gameState.nextSpawn <= 0) {
     const x   = 60 + Math.random() * (gameCanvas.width - 120);
     const vx  = (Math.random() - 0.5) * 80;
-    const vy  = -820 - Math.random() * 250; // bay cao hơn nữa
+    const vy  = -1000 - Math.random() * 200; // lực đẩy -1000 hợp lý
     const isBad = Math.random() < 0.6;
     const text  = isBad
       ? ["Giá siêu rẻ","Không đổi trả","Cam kết 100%","Sale 80%"][Math.floor(Math.random()*4)]
       : ["Nguồn gốc rõ","Có ảnh thật","Bảo hành 12th","Được đổi trả"][Math.floor(Math.random()*4)];
-    gameState.cards.push({ x, y: gameCanvas.height, vx, vy, isBad, text, sliced:false, rot:0, vrot:(Math.random()-0.5)*4 });
+    gameState.cards.push({ x, y: gameCanvas.height, vx, vy, isBad, text,
+      sliced:false, halves:null, rot:0, vrot:(Math.random()-0.5)*4, sliceAngle:0 });
     gameState.nextSpawn = 1.5 + Math.random();
+  }
+
+  // Shake effect
+  if (gameState.shakeTime > 0) {
+    gameState.shakeTime -= dt;
+    ctx.save();
+    const sx = (Math.random()-0.5)*14;
+    const sy = (Math.random()-0.5)*14;
+    ctx.translate(sx, sy);
   }
 
   ctx.clearRect(0, 0, gameCanvas.width, gameCanvas.height);
 
+  // Red flash overlay khi chém sai
+  if (gameState.flashTime > 0) {
+    gameState.flashTime -= dt;
+    const alpha = Math.min(0.45, gameState.flashTime * 1.5);
+    ctx.fillStyle = `rgba(239,68,68,${alpha})`;
+    ctx.fillRect(0, 0, gameCanvas.width, gameCanvas.height);
+  }
+
   // Update & draw cards
   for (let i = gameState.cards.length - 1; i >= 0; i--) {
     let c = gameState.cards[i];
-    c.vy  += 750 * (dt/gameState.slowMo); // gravity không bị ảnh hưởng slowmo
+    c.vy  += 750 * (dt/gameState.slowMo);
     c.x   += c.vx * dt;
     c.y   += c.vy * dt;
     c.rot += c.vrot * dt;
@@ -579,18 +699,32 @@ function slicerLoop(time) {
       // Check slice
       if (gameState.mouse.active && gameState.sliceTrail.length > 1) {
         const last = gameState.sliceTrail[gameState.sliceTrail.length-1];
+        const prev = gameState.sliceTrail[gameState.sliceTrail.length-2] || last;
         const dist = Math.hypot(c.x - last.x, c.y - last.y);
-        if (dist < 45) {
+        if (dist < 48) {
+          // Tính góc đường chém để cắt đôi thẻ theo đúng hướng đó
+          c.sliceAngle = Math.atan2(last.y - prev.y, last.x - prev.x);
           c.sliced = true;
-          c.vx = (Math.random()-0.5)*200;
+          // Hai nửa bay ra hai phía theo góc vuông với đường chém
+          const perpX = Math.cos(c.sliceAngle + Math.PI/2);
+          const perpY = Math.sin(c.sliceAngle + Math.PI/2);
+          c.halves = [
+            { dx: perpX*90, dy: perpY*90 - 40, rot:  0.04, age:0 },
+            { dx:-perpX*90, dy:-perpY*90 - 40, rot: -0.04, age:0 }
+          ];
           if (c.isBad) {
+            SFX.slice();
             gameState.score += 10;
             gameState.combo++;
-            if (gameState.combo >= 5) { gameState.combo = 0; gameState.slowMo = 0.3; }
+            if (gameState.combo >= 5) { gameState.combo = 0; gameState.slowMo = 0.3; SFX.combo(); }
           } else {
+            SFX.sliceWrong();
             gameState.combo = 0;
             gameState.hearts--;
+            gameState.shakeTime = 0.35;
+            gameState.flashTime = 0.35;
             updateGameHeader();
+            SFX.heartLost();
             if (gameState.hearts <= 0) { gameOver("Hết tim"); return; }
           }
           updateGameHeader();
@@ -601,43 +735,75 @@ function slicerLoop(time) {
         if (c.isBad) {
           gameState.hearts--;
           gameState.combo = 0;
+          gameState.shakeTime = 0.2;
+          gameState.flashTime = 0.2;
+          SFX.heartLost();
           updateGameHeader();
           if (gameState.hearts <= 0) { gameOver("Hết tim"); return; }
         }
         gameState.cards.splice(i, 1);
         continue;
       }
-    } else if (c.y > gameCanvas.height + 100) {
-      gameState.cards.splice(i, 1);
-      continue;
+    } else {
+      // Cập nhật vị trí của hai nửa thẻ bị cắt đôi
+      if (c.halves) c.halves.forEach(h => { h.age += dt; h.dy += 400*dt; });
+      if (c.y > gameCanvas.height + 120) { gameState.cards.splice(i, 1); continue; }
     }
 
-    ctx.save();
-    ctx.translate(c.x, c.y);
-    ctx.rotate(c.rot);
-    ctx.fillStyle   = c.sliced ? "#94a3b8" : (c.isBad ? "#fee2e2" : "#dcfce7");
-    ctx.strokeStyle = c.sliced ? "#64748b"  : (c.isBad ? "#ef4444" : "#22c55e");
-    ctx.lineWidth   = 2;
-    ctx.beginPath(); ctx.roundRect(-62,-32,124,64,8); ctx.fill(); ctx.stroke();
-    ctx.fillStyle = c.sliced ? "#94a3b8" : (c.isBad ? "#dc2626" : "#16a34a");
-    ctx.font = "bold 12px Montserrat, sans-serif";
-    ctx.textAlign = "center"; ctx.textBaseline = "middle";
-    ctx.fillText(c.text, 0, 0);
-    if (!c.sliced) {
+    if (c.sliced && c.halves) {
+      // Vẽ hai nửa tờ bị cắt đôi
+      c.halves.forEach((h, hi) => {
+        ctx.save();
+        ctx.translate(c.x + h.dx * h.age * 2, c.y + h.dy);
+        ctx.rotate(c.rot + h.rot * h.age * 20);
+        // Clip nửa trên / nửa dưới theo đường chém
+        ctx.beginPath();
+        ctx.rotate(c.sliceAngle);
+        if (hi === 0) ctx.rect(-80, 0, 160, 80);
+        else          ctx.rect(-80, -80, 160, 80);
+        ctx.rotate(-c.sliceAngle);
+        ctx.clip();
+        // Vẽ thẻ gốc bên trong vùng clip
+        const alpha = Math.max(0, 1 - h.age * 1.4);
+        ctx.globalAlpha = alpha;
+        ctx.fillStyle   = c.isBad ? "#fee2e2" : "#dcfce7";
+        ctx.strokeStyle = c.isBad ? "#ef4444" : "#22c55e";
+        ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.roundRect(-62,-32,124,64,8); ctx.fill(); ctx.stroke();
+        ctx.fillStyle = c.isBad ? "#dc2626" : "#16a34a";
+        ctx.font = "bold 11px Montserrat";
+        ctx.textAlign="center"; ctx.textBaseline="middle";
+        ctx.fillText(c.text, 0, 0);
+        ctx.restore();
+      });
+    } else if (!c.sliced) {
+      ctx.save();
+      ctx.translate(c.x, c.y);
+      ctx.rotate(c.rot);
+      ctx.fillStyle   = c.isBad ? "#fee2e2" : "#dcfce7";
+      ctx.strokeStyle = c.isBad ? "#ef4444" : "#22c55e";
+      ctx.lineWidth   = 2;
+      ctx.beginPath(); ctx.roundRect(-62,-32,124,64,8); ctx.fill(); ctx.stroke();
+      ctx.fillStyle = c.isBad ? "#dc2626" : "#16a34a";
+      ctx.font = "bold 12px Montserrat, sans-serif";
+      ctx.textAlign = "center"; ctx.textBaseline = "middle";
+      ctx.fillText(c.text, 0, 0);
       const tag = c.isBad ? "⚠️ Rủi ro" : "✅ Tốt";
       ctx.font = "10px Arial"; ctx.fillStyle = c.isBad ? "#ef4444" : "#22c55e";
       ctx.fillText(tag, 0, 20);
+      ctx.restore();
     }
-    ctx.restore();
   }
+
+  if (gameState.shakeTime > 0) ctx.restore();
 
   // Slice trail
   if (gameState.sliceTrail.length > 1) {
     ctx.beginPath();
     ctx.moveTo(gameState.sliceTrail[0].x, gameState.sliceTrail[0].y);
     for (let i=1; i<gameState.sliceTrail.length; i++) ctx.lineTo(gameState.sliceTrail[i].x, gameState.sliceTrail[i].y);
-    ctx.strokeStyle = "rgba(255,255,255,0.85)";
-    ctx.lineWidth   = 4;
+    ctx.strokeStyle = "rgba(255,220,100,0.9)";
+    ctx.lineWidth   = 5;
     ctx.lineCap     = "round";
     ctx.stroke();
   }
@@ -685,15 +851,20 @@ function spawnRhythmRow() {
   const el = document.createElement("div");
   el.className = `rhythmTile ${isCorrect ? "correct" : "trap"}`;
   el.textContent = isCorrect ? correctStep : traps[Math.floor(Math.random()*traps.length)];
-  // Tất cả đều màu xám — học sinh phải đọc nội dung, không nhìn màu mà chơi!
+  // Màu phân biệt nhẹ: bước đúng tông xanh lam trung tính, bẫy tông nâu đất
+  // Không dùng đỏ/xanh sặc sỡ để học sinh vẫn phải đọc nội dung
+  const bgStyle = isCorrect
+    ? "linear-gradient(135deg,#1e40af,#1d4ed8)"   // Xanh lam đậm — bước mua sắm
+    : "linear-gradient(135deg,#78350f,#92400e)";  // Nâu đất — cám dỗ
   el.style.cssText = `
     position:absolute; width:88%; left:6%; top:-90px;
     height:72px; border-radius:12px; display:flex; align-items:center; justify-content:center;
-    color:#fff; font-weight:700; font-size:12px; text-align:center; padding:6px; box-sizing:border-box;
+    color:#e2e8f0; font-weight:700; font-size:12px; text-align:center; padding:6px; box-sizing:border-box;
     cursor:pointer; user-select:none;
-    background:linear-gradient(135deg,#475569,#334155);
-    box-shadow:0 4px 12px rgba(0,0,0,0.4);
-    border:2px solid rgba(255,255,255,0.1);
+    background:${bgStyle};
+    box-shadow:0 4px 16px rgba(0,0,0,0.5);
+    border:2px solid rgba(255,255,255,0.12);
+    letter-spacing:0.02em;
   `;
 
   const colEl = document.getElementById(`rCol${targetCol}`);
@@ -711,14 +882,18 @@ function handleRhythmClick(t) {
   t.clicked = true;
 
   if (t.isTrap) {
-    t.el.style.background = "#94a3b8";
-    t.el.style.opacity    = "0.6";
+    SFX.tapWrong();
+    t.el.style.background  = "linear-gradient(135deg,#dc2626,#991b1b)";
+    t.el.style.opacity     = "0.7";
+    t.el.style.transform   = "scale(0.92)";
     gameState.hearts--;
     updateGameHeader();
     if (gameState.hearts <= 0) { gameOver("Hết tim"); return; }
   } else if (t.isCorrect) {
-    t.el.style.background = "#22c55e";
-    t.el.style.boxShadow  = "0 0 16px #22c55e";
+    SFX.tap();
+    t.el.style.background  = "linear-gradient(135deg,#16a34a,#15803d)";
+    t.el.style.boxShadow   = "0 0 20px #22c55e, 0 0 40px rgba(34,197,94,0.4)";
+    t.el.style.transform   = "scale(1.06)";
     gameState.score += 20;
     gameState.currentStep++;
     updateGameHeader();
@@ -836,6 +1011,7 @@ function startDefenseGame() {
       if (e.data.weakness === type && e.progress > maxProg) { maxProg = e.progress; target = e; }
     }
     if (target) {
+      SFX.shield();
       // Lưu DOM element của địch trước khi xóa khỏi mảng
       const enemyEl = target.domEl || null;
       target.dead = true;
@@ -843,6 +1019,7 @@ function startDefenseGame() {
       updateGameHeader();
       spawnShieldEffect(type, target.angle, shieldIcons[type].icon, enemyEl);
     } else {
+      SFX.shieldMiss();
       spawnMissEffect();
     }
     // Không gọi renderDefenseGame ở đây ngay, để animation chạy xong rồi loop sẽ xóa
@@ -889,6 +1066,7 @@ function spawnShieldEffect(type, angle, icon, enemyEl) {
 
     // Enemy bị đẩy ngược ra ngoài màn hình theo cùng hướng angle
     if (enemyEl && enemyEl.parentNode) {
+      enemyEl.dataset.dying = "true";
       const pushX = Math.cos(angle) * 140;
       const pushY = Math.sin(angle) * 140;
       enemyEl.style.transition = "transform 0.4s cubic-bezier(0.36,0.07,0.19,0.97), opacity 0.4s ease";
@@ -945,7 +1123,7 @@ function updateDefenseGame(dt) {
     gameState.nextSpawn = 2.0 + Math.random() * 1.5;
     const angle    = Math.random() * Math.PI * 2;
     const enemy    = gameState.enemyTypes[Math.floor(Math.random() * gameState.enemyTypes.length)];
-    gameState.enemies.push({ angle, progress:0, data:enemy });
+    gameState.enemies.push({ id: Math.random().toString(36).substr(2, 9), angle, progress:0, data:enemy });
   }
 
   for (let i = gameState.enemies.length - 1; i >= 0; i--) {
@@ -954,6 +1132,7 @@ function updateDefenseGame(dt) {
     e.progress += gameState.speed * dt;
     if (e.progress >= 95) {
       gameState.hearts--;
+      SFX.heartLost();
       updateGameHeader();
       gameState.enemies.splice(i, 1);
       // Flash đỏ wallet
@@ -1000,7 +1179,6 @@ function renderDefenseGame() {
         position:absolute;
         display:flex; flex-direction:column; align-items:center;
         filter:drop-shadow(0 0 4px ${colors[e.data.type]});
-        transition:left 0.1s linear, top 0.1s linear;
       `;
       arena.appendChild(el);
       e.domEl = el; // Lưu tham chiếu DOM
