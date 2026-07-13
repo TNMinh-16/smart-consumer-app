@@ -418,3 +418,22 @@
   width: 100%;
   transition: width 0.3s;
 }
+
+.rhythmGrid {
+  display: flex;
+  width: 100%;
+  height: 100%;
+  position: absolute;
+  top: 0;
+  left: 0;
+}
+
+.rhythmCol {
+  flex: 1;
+  position: relative;
+  height: 100%;
+  border-right: 1px dashed rgba(255,255,255,0.1);
+}
+.rhythmCol:last-child {
+  border-right: none;
+}

@@ -42,7 +42,7 @@
         <p>Luyện phản xạ và ghi nhớ kiến thức. Đạt ít nhất 6/12 sao để vượt qua chặng này!</p>
       </header>
 
-      <div class="knowledgeSummary">
+      <div class="knowledgeSummary" id="knowledgeSummaryView">
         <h3>Gói Hành Trang Trước Khi Chơi</h3>
         <div class="kCards">
           <div class="kCard">
@@ -61,9 +61,12 @@
             <p>1. Xác định nhu cầu → 2. Tìm hiểu → 3. So sánh → 4. Cân nhắc → 5. Kiểm tra → 6. Chốt mua.</p>
           </div>
         </div>
+        <div class="actions" style="margin-top: 24px; text-align: center;">
+          <button class="primary" id="checkLessonBtn">Kiểm tra bài học →</button>
+        </div>
       </div>
       
-      <div id="arcadeMenu">
+      <div id="arcadeMenu" hidden>
         <div class="arcadeStatus">
           <div class="arcadeStars">⭐ Tổng sao: <span id="totalArcadeStars">0</span>/12</div>
           <div class="arcadeBadges" id="arcadeBadgesDisplay">
